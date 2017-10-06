@@ -1,0 +1,91 @@
+#extend("base")
+
+#export("title") { Clients }
+#export("main") {
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Clients</li>
+    </ol>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa fa-align-justify"></i> Clients
+                    </div>
+                    <div class="card-block">
+                        <table class="table table-hover table-responsive">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>ID</th>
+                                    <th>Website</th>
+                                    <th>Redirect URI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                #raw(tableData)
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa fa-align-justify"></i> New Client
+                    </div>
+                    #if(showSecret) {
+                        <div class="card-block">
+                            <div class="container">
+                                <div class="row-12">
+                                    <div class="alert alert-success" role="alert">
+                                        #if(resetSecret) {
+                                            <h4 class="alert-heading">Client Secret Reset</h4>
+                                        } ##else() {
+                                            <h4 class="alert-heading">New Client Created</h4>
+                                        }
+                                        <hr>
+                                        <p>Client ID: <strong>#(clientId)</strong></p>
+                                        <p>Client Secret: <strong>#(clientSecret)</strong></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    <form class="form-signin" action="/client" method="post">
+                        <div class="card-block">
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">Client Name</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <span class="input-group-addon"><i class="icon-user"></i></span>
+                                        <input type="text" spellcheck="false" class="form-control" placeholder="Client Name" name="name" value="#(name)" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">Website</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <span class="input-group-addon"><i class="icon-globe"></i></span>
+                                        <input type="url" spellcheck="false" class="form-control" placeholder="Website" name="website" value="#(website)" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">Redirect URI</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <span class="input-group-addon"><i class="icon-action-redo"></i></span>
+                                        <input type="url" spellcheck="false" class="form-control" placeholder="Redirect URI" name="redirectUri" value="#(redirectUri)" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Add Client</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}

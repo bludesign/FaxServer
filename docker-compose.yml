@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  mongo:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - ./Database/configdb:/data/configdb
+      - ./Database/db:/data/db
+  vapor:
+    image: chandlerhuff/vapor:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/vapor
+    environment:
+        - MONGO_HOST=mongo
+        - VAPOR_HOST=0.0.0.0
+    links:
+        - mongo

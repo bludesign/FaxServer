@@ -1,0 +1,185 @@
+#extend("base")
+
+#export("title") { Admin }
+#export("main") {
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Settings</li>
+    </ol>
+    <div class="container">
+        <div class="card">
+            <form action="./admin" method="post">
+                <div class="card-header">
+                    <i class="fa fa-align-justify"></i> Settings
+                </div>
+                <div class="card-block">
+                    <fieldset class="form-group">
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">User Registration</label>
+                            <div class="input-prepend input-group">
+                                <div class="form-check">
+                                    <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="registrationEnabled" id="optionsRadios1" value="true" #(userRegistrationEnabled)> Enabled
+                                    </label>
+                                    <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="registrationEnabled" id="optionsRadios2" value="false" #(userRegistrationDisabled)> Disabled
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Server Address (URL)</label>
+                            <div class="controls">
+                                <div class="input-prepend input-group">
+                                    <span class="input-group-addon"><i class="icon-globe"></i></span>
+                                    <input type="url" spellcheck="false" class="form-control" placeholder="http://127.0.0.1:8080" name="domain" value="#(domain)" required>
+                                </div>
+                                <p class="help-block">URL used to access fax server.</p>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Timezone</label>
+                                <div class="input-prepend input-group">
+                                <select name="timeZone" class="form-control">
+                                    #raw(timeZoneData)
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Secure (HTTPS Only) Cookies</label>
+                            <div class="input-prepend input-group">
+                                <div class="form-check">
+                                    <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="secureCookie" id="optionsRadios1" value="true" #(secureCookieEnabled)> Enabled
+                                    </label>
+                                    <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="secureCookie" id="optionsRadios2" value="false" #(secureCookieDisabled)> Disabled
+                                    </label>
+                                </div>
+                            </div>
+                            <p class="help-block">Warning: Enable if you only access the server over a secure connection (HTTPS) otherwise you will be unable to login.</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Nexmo Webhook Enabled</label>
+                            <div class="input-prepend input-group">
+                                <div class="form-check">
+                                    <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="nexmoEnabled" id="optionsRadios1" value="true" #(nexmoEnabled)> Enabled
+                                    </label>
+                                    <label class="form-check-label">
+                                        <input type="radio" class="form-check-input" name="nexmoEnabled" id="optionsRadios2" value="false" #(nexmoDisabled)> Disabled
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Save</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <form action="./admin" method="post">
+                <div class="card-header">
+                    <i class="fa fa-align-justify"></i> Email Settings
+                </div>
+                <div class="card-block">
+                    <fieldset class="form-group">
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Fax Notification Email</label>
+                            <div class="controls">
+                                <div class="input-prepend input-group">
+                                    <span class="input-group-addon"><i class="icon-envelope-letter"></i></span>
+                                    <input type="email" spellcheck="false" class="form-control" placeholder="Notification Email" name="notificationEmail" value="#(notificationEmail)" required>
+                                </div>
+                                <p class="help-block">Email address to send new fax notifications to.</p>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Mailgun Send From Email</label>
+                            <div class="controls">
+                                <div class="input-prepend input-group">
+                                    <span class="input-group-addon"><i class="icon-envelope-letter"></i></span>
+                                    <input type="email" spellcheck="false" class="form-control" placeholder="Mailgun Send From Email" name="mailgunFromEmail" value="#(mailgunFromEmail)" required>
+                                </div>
+                                <p class="help-block">Email address to send new fax notifications from.</p>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Mailgun API Key</label>
+                            <div class="controls">
+                                <div class="input-prepend input-group">
+                                    <span class="input-group-addon"><i class="icon-key"></i></span>
+                                    <input type="text" spellcheck="false" class="form-control" placeholder="Mailgun API Key" name="mailgunApiKey">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Mailgun API URL</label>
+                            <div class="controls">
+                                <div class="input-prepend input-group">
+                                    <span class="input-group-addon"><i class="icon-globe"></i></span>
+                                    <input type="url" spellcheck="false" class="form-control" placeholder="Mailgun API URL" name="mailgunApiUrl">
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Save</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <form action="./admin" method="post">
+                <div class="card-header">
+                    <i class="fa fa-align-justify"></i> Push Notification Settings
+                </div>
+                <div class="card-block">
+                    <fieldset class="form-group">
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Team ID</label>
+                            <div class="controls">
+                                <div class="input-prepend input-group">
+                                    <span class="input-group-addon"><i class="icon-people"></i></span>
+                                    <input type="text" spellcheck="false" class="form-control" placeholder="Team ID" name="apnsTeamId" value="#(apnsTeamId)" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Application Bundle ID</label>
+                            <div class="controls">
+                                <div class="input-prepend input-group">
+                                    <span class="input-group-addon"><i class="icon-notebook"></i></span>
+                                    <input type="text" spellcheck="false" class="form-control" placeholder="Application Bundle ID" name="apnsBundleId" value="#(apnsBundleId)" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Push Auth Key ID</label>
+                            <div class="controls">
+                                <div class="input-prepend input-group">
+                                    <span class="input-group-addon"><i class="icon-key"></i></span>
+                                    <input type="text" spellcheck="false" class="form-control" placeholder="Push Auth Key ID" name="apnsKeyId" value="#(apnsKeyId)" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-control-label" for="prependedInput">Push Auth Key Path</label>
+                            <div class="controls">
+                                <div class="input-prepend input-group">
+                                    <span class="input-group-addon"><i class="icon-folder"></i></span>
+                                    <input type="text" spellcheck="false" class="form-control" placeholder="Push Auth Key Path" name="apnsKeyPath" value="#(apnsKeyPath)" required>
+                                </div>
+                            </div>
+                            <p class="help-block">Path is relative to the Resources folder</p>
+                        </div>
+                    </fieldset>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

@@ -1,0 +1,113 @@
+#extend("base")
+
+#export("title") { Account }
+#export("css") {
+    <link rel="stylesheet" href="/vendors/css/intlTelInput.css">
+}
+#export("scripts") {
+    <script src="/vendors/js/intlTelInput.js"></script>
+    <script>
+        $("#()phoneNumber").intlTelInput({
+            autoPlaceholder: "off",
+            initialCountry: "auto",
+            allowDropdown: false,
+            geoIpLookup: function(callback) {
+                $.get("https://ipinfo.io", function() {}, "jsonp").always(function(resp) {
+                    var countryCode = (resp && resp.country) ? resp.country : "";
+                    callback(countryCode);
+                });
+            },
+            utilsScript: "/vendors/js/utils.js"
+        });
+        function Submit(){
+            document.form.phoneNumber.value = $("#()phoneNumber").intlTelInput("getNumber", intlTelInputUtils.numberFormat.E164);
+            return true;
+        }
+    </script>
+}
+#export("main") {
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/account">Accounts</a></li>
+        <li class="breadcrumb-item active">Account</li>
+    </ol>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <form class="form-signin" action="/account/#(accountId)" name="form" method="post" onsubmit="Submit();">
+                        <div class="card-header">
+                            <i class="fa fa-align-justify"></i> Update Account
+                        </div>
+                        <div class="card-block">
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">Account Name</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <span class="input-group-addon"><i class="icon-user"></i></span>
+                                        <input type="text" spellcheck="false" class="form-control" placeholder="Account Name" name="accountName" value="#(accountName)" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">Fax Notification Email</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <span class="input-group-addon"><i class="icon-envelope-letter"></i></span>
+                                        <input type="email" spellcheck="false" class="form-control" placeholder="Notification Email" name="notificationEmail" value="#(notificationEmail)" required>
+                                    </div>
+                                    <p class="help-block">Email address to send new fax notifications to.</p>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">Phone Number</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <span class="input-group-addon"><i class="icon-phone"></i></span>
+                                        <input type="tel" spellcheck="false" placeholder="Phone Number" name="phoneNumber" id="phoneNumber" value="#(phoneNumber)" style="width:100%;height:100%;padding-top: 0.5rem;padding-right: 0.75rem;padding-bottom: 0.5rem;padding-left: 0.75rem;" required>
+                                    </div>
+                                    <p class="help-block">Outgoing phone number to use for faxes.</p>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">Twilio Account SID</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <input type="text" spellcheck="false" class="form-control" placeholder="Twilio Account SID" name="accountSid" value="#(accountSid)" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">Twilio Auth Token</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <span class="input-group-addon"><i class="icon-key"></i></span>
+                                        <input type="text" spellcheck="false" class="form-control" placeholder="Twilio Auth Token" name="authToken">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Submit</button>
+                            <button type="submit" class="btn btn-sm btn-danger" name="action" value="delete"><i class="fa fa-ban"></i> Delete</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card">
+                    <form class="form-signin" action="/account/#(accountId)/configure" method="post">
+                        <div class="card-header">
+                            <i class="fa fa-align-justify"></i> Configure Phone Number
+                        </div>
+                        <div class="card-block">
+                            <div class="alert alert-light" role="alert">
+                                Configures the phone numbers webhook on Twilio for sms messaging. Configuration for fax must be done manually.
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-sm btn-primary" name="action" value="sms"><i class="fa fa-dot-circle-o"></i> Setup SMS</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}

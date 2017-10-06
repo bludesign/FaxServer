@@ -1,0 +1,9 @@
+{
+    "view": "leaf",
+    "hash": "crypto",
+    "cipher": "crypto",
+    "middleware": [
+        "coreMiddleware",
+        "file"
+    ]
+}

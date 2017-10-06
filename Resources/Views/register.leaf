@@ -1,0 +1,43 @@
+#extend("formBase")
+
+#export("title") { Register }
+#export("main") {
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card-group mb-0">
+                    <div class="card p-4">
+                        <div class="card-block">
+                            <h1>Register</h1>
+                            #if(disabled) {
+                                <div class="alert alert-danger" role="alert">
+                                    <strong>Registration is Disabled</strong>
+                                </div>
+                            } ##else() {
+                                <p class="text-muted">Create your account</p>
+                                #if(emailTaken) {
+                                    <div class="alert alert-danger" role="alert">
+                                        <strong>Email Address Already In Use</strong>
+                                    </div>
+                                }
+                                <form class="form-signin" action="./register" method="post">
+                                    <input name="authenticityToken" type="hidden" value="#(authenticityToken)" />
+                                    <input name="referrer" type="hidden" value="#(referrer)" />
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-addon"><i class="icon-user"></i></span>
+                                        <input type="email" class="form-control" placeholder="Email" name="email" required autofocus>
+                                    </div>
+                                    <div class="input-group mb-4">
+                                        <span class="input-group-addon"><i class="icon-lock"></i></span>
+                                        <input type="password" class="form-control" placeholder="Password" name="password" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-block btn-success">Create User</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

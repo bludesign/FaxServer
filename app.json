@@ -1,0 +1,8 @@
+{
+    "name": "Server",
+    "scripts": {},
+    "env": {},
+    "formation": {},
+    "addons": [],
+    "buildpacks": []
+}

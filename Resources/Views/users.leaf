@@ -1,0 +1,58 @@
+#extend("base")
+
+#export("title") { Users }
+#export("main") {
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Users</li>
+    </ol>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa fa-align-justify"></i> Users
+                    </div>
+                    <div class="card-block">
+                        <table class="table table-hover table-responsive">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>2 Factor Enabled</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                #raw(tableData)
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa fa-align-justify"></i> New User
+                    </div>
+                    <form class="form-signin" action="./user" method="post">
+                        <input name="referrer" type="hidden" value="/user" />
+                        <div class="card-block">
+                            #if(emailTaken) {
+                                <div class="alert alert-danger" role="alert">
+                                    <strong>Email Address Already In Use</strong>
+                                </div>
+                            }
+                            <div class="input-group mb-3">
+                                <span class="input-group-addon"><i class="icon-user"></i></span>
+                                <input type="email" class="form-control" placeholder="Email" name="email" required autofocus>
+                            </div>
+                            <div class="input-group mb-4">
+                                <span class="input-group-addon"><i class="icon-lock"></i></span>
+                                <input type="password" class="form-control" placeholder="Password" name="password" required>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Create User</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}

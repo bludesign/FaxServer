@@ -1,0 +1,119 @@
+#extend("base")
+
+#export("title") { User }
+#export("scripts") {
+    <script type="text/javascript" src="/vendors/js/qrcode.js"></script>
+    <script>
+        jQuery('#()code').qrcode("#(totpToken)");
+    </script>
+}
+#export("main") {
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/user">Users</a></li>
+        <li class="breadcrumb-item active">User</li>
+    </ol>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <form class="form-signin" action="/user/#(userId)" method="post">
+                        <div class="card-header">
+                            <i class="fa fa-align-justify"></i> Update User
+                        </div>
+                        <div class="card-block">
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">User Email</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <span class="input-group-addon"><i class="icon-envelope-letter"></i></span>
+                                        <input type="email" spellcheck="false" class="form-control" placeholder="User Email" name="email" value="#(email)" required>
+                                    </div>
+                                    <p class="help-block">Email address to send new fax notifications to.</p>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-control-label" for="prependedInput">User Password</label>
+                                <div class="controls">
+                                    <div class="input-prepend input-group">
+                                        <span class="input-group-addon"><i class="icon-key"></i></span>
+                                        <input type="password" class="form-control" placeholder="Password" name="password">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Submit</button>
+                            <button type="submit" class="btn btn-sm btn-danger" name="action" value="delete"><i class="fa fa-ban"></i> Delete</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card">
+                    <form class="form-signin" action="/user/#(userId)/totp" method="post">
+                        <div class="card-header">
+                            <i class="fa fa-align-justify"></i> 2 Factor Authentication
+                        </div>
+                        <div class="card-block">
+                            <div class="container">
+                                #if(verify) {
+                                    <div id="code" class="row justify-content-md-center mb-4">
+                                    </div>
+                                    <div class="row-12">
+                                        <div class="alert alert-warning" role="alert">
+                                            <h4 class="alert-heading">Verify Authentication Code</h4>
+                                            <p>Secret Key: <strong>#(totpToken)</strong> (Base32 encoded)</p>
+                                            <p>Type: TOTP (RFC6238)</p>
+                                            <hr>
+                                            <p class="mb-0">We recommend using the Google Authenticator app, which is available for <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android</a>, <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605" target="_blank">Apple</a>, and <a href="https://m.google.com/authenticator">BlackBerry</a> devices.</p>
+                                            <small class="text-muted">2 Factor Authentication Uses <a href="https://github.com/chrisamanse/OTPKit" class="text-muted">OTPKit</a></small>
+                                        </div>
+                                        <div class="row">
+                                            <div class="form-group">
+                                                <label class="form-control-label" for="prependedInput">Authentication Code</label>
+                                                <div class="controls">
+                                                    <div class="input-prepend input-group">
+                                                        <span class="input-group-addon"><i class="icon-key"></i></span>
+                                                        <input type="number" class="form-control" autocomplete="off" placeholder="Authentication Code" name="code" required>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                } ##if(totpActivated) {
+                                    <div class="row-12">
+                                        <div class="alert alert-success" role="alert">
+                                            <h4 class="alert-heading">Activated</h4>
+                                            <p>Type: TOTP (RFC6238)</p>
+                                            <hr>
+                                            <p class="mb-0">We recommend using the Google Authenticator app, which is available for <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank">Android</a>, <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605" target="_blank">Apple</a>, and <a href="https://m.google.com/authenticator">BlackBerry</a> devices.</p>
+                                            <small class="text-muted">2 Factor Authentication Uses <a href="https://github.com/chrisamanse/OTPKit" class="text-muted">OTPKit</a></small>
+                                        </div>
+                                    </div>
+                                } ##else() {
+                                    <div class="row-12">
+                                        <div class="alert alert-danger" role="alert">
+                                            <h4 class="alert-heading">Deactiavted</h4>
+                                            <p>Type: TOTP (RFC6238)</p>
+                                            <hr>
+                                            <p class="mb-0">Two Factor Authentication, also known as 2FA, is a technique that adds an additional layer of security where an additional authentication step is required in order to login to an online account.</p>
+                                            <small class="text-muted">2 Factor Authentication Uses <a href="https://github.com/chrisamanse/OTPKit" class="text-muted">OTPKit</a></small>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            #if(verify) {
+                                <button type="submit" class="btn btn-sm btn-success" name="action" value="verify"><i class="fa fa-dot-circle-o"></i> Verify</button>
+                            } ##if(totpActivated) {
+                                <button type="submit" class="btn btn-sm btn-warning" name="action" value="deactivate"><i class="fa fa-dot-circle-o"></i> Deactivate</button>
+                                <button type="submit" class="btn btn-sm btn-danger" name="action" value="resetToken"><i class="fa fa-ban"></i> Reset Token</button>
+                            } ##else() {
+                                <button type="submit" class="btn btn-sm btn-success" name="action" value="activate"><i class="fa fa-dot-circle-o"></i> Activate</button>
+                            }
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}

@@ -1,0 +1,11 @@
+disabled_rules:
+    - line_length
+    - trailing_whitespace
+    - type_body_length
+    - function_body_length
+    - file_length
+    - cyclomatic_complexity
+    - identifier_name
+    - large_tuple
+included:
+    - Sources

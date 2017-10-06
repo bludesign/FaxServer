@@ -1,0 +1,46 @@
+<!--
+ * CoreUI - Open Source Bootstrap Admin Template
+ * @version v1.0.0-alpha.6
+ * @link http://coreui.io
+ * Copyright (c) 2017 creativeLabs Łukasz Holeczek
+ * @license MIT
+ -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="Server Admin">
+    <meta name="author" content="BluDesign">
+    <link rel="shortcut icon" href="/img/favicon.png">
+
+    <title>Error</title>
+
+    <link href="/vendors/css/font-awesome.min.css" rel="stylesheet">
+    <link href="/vendors/css/simple-line-icons.min.css" rel="stylesheet">
+    <link href="/vendors/css/style.min.css" rel="stylesheet">
+</head>
+
+<body class="app flex-row align-items-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="clearfix">
+                    <h1 class="float-left display-3 mr-4">#(errorCode)</h1>
+                    <h4 class="pt-3">#(errorTitle)</h4>
+                    <p class="text-muted">#(errorMessage)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/vendors/js/jquery.min.js"></script>
+    <script src="/vendors/js/popper.min.js"></script>
+    <script src="/vendors/js/bootstrap.min.js"></script>
+    <script src="/vendors/js/pace.min.js"></script>
+    <script src="/vendors/js/app.js"></script>
+</body>
+
+</html>
