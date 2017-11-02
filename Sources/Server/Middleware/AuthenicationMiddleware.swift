@@ -60,7 +60,7 @@ extension Request {
             guard Date() < tokenExpiration else { return nil }
             guard let userId = accessToken["userId"] as? ObjectId else { return nil }
             storage["userId"] = userId
-            return accessToken["userId"] as? ObjectId
+            return userId
         } catch {
             return nil
         }

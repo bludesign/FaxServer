@@ -19,7 +19,7 @@ extension User {
         let protected = group.grouped([authenticationMiddleware])
         
         // MARK: Get Users
-        group.get { request in
+        protected.get { request in
             let skip = request.data["skip"]?.int ?? 0
             let limit = min(100, request.data["limit"]?.int ?? 100)
             let documents = try User.collection.find(sortedBy: ["email": .ascending], projecting: [

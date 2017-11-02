@@ -68,6 +68,7 @@ struct AccessToken {
         let token = try String.tokenEncoded()
         let tokenHash = try Application.makeHash(token)
         accessToken["tokenExpires"] = Date(timeIntervalSinceNow: AccessToken.expiresIn)
+        accessToken["endOfLife"] = Date(timeIntervalSinceNow: 1210000 + AccessToken.expiresIn)
         accessToken["token"] = tokenHash
         try AccessToken.collection.update("_id" == accessTokenId, to: accessToken)
         

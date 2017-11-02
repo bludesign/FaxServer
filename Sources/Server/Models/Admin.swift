@@ -74,7 +74,7 @@ struct Admin {
             return document["notificationEmail"] as? String ?? Constants.defaultEmail
         }
         set {
-            document["adminEmail"] = newValue
+            document["notificationEmail"] = newValue
         }
     }
     

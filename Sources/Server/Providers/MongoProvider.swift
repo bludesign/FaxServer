@@ -38,8 +38,8 @@ final class MongoProvider: Vapor.Provider {
         
         let host = mongo["host"]?.string ?? "localhost"
         let port = mongo["port"]?.int ?? 27017
-        if let user = mongo["user"]?.string?.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed), user.characters.count > 0 {
-            if let password = mongo["password"]?.string?.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed), password.characters.count > 0 {
+        if let user = mongo["user"]?.string?.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed), user.isEmpty == false {
+            if let password = mongo["password"]?.string?.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed), password.isEmpty == false {
                 server = try Server("mongodb://\(user):\(password)@\(host):\(port)")
             } else {
                 server = try Server("mongodb://\(user)@\(host):\(port)")
