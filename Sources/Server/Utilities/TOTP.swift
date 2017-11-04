@@ -52,7 +52,7 @@ struct TOTP {
             return offsetPointer.withMemoryRebound(to: UInt32.self, capacity: MemoryLayout<UInt32>.size) { $0.pointee.bigEndian }
         }
         let password = String((truncated & 0x7fffffff) % UInt32(pow(10, Float(digits))))
-        let paddingCount = digits - password.characters.count
+        let paddingCount = digits - password.count
         if paddingCount != 0 {
             return String(repeating: "0", count: paddingCount) + password
         } else {
@@ -137,7 +137,7 @@ private struct Base32 {
             #else
                 let substring = string.substring(with: lowerBoundIndex ..< upperBoundIndex)
             #endif
-            let decodedBytes = substring.characters.lazy.map { value(for: $0) }
+            let decodedBytes = substring.lazy.map { value(for: $0) }
             var fiveByte: UInt64 = 0
             
             for (index, someByte) in decodedBytes.enumerated() {
@@ -158,7 +158,7 @@ private struct Base32 {
         } while upperBoundIndex < string.endIndex
         
         var trailingCount = 0
-        var index: String.CharacterView.Index? = string.index(string.startIndex, offsetBy: string.characters.count - 1)
+        var index: String.CharacterView.Index? = string.index(string.startIndex, offsetBy: string.count - 1)
         while let i = index, string[i] == "=" && trailingCount < 6 {
             trailingCount += 1
             index = string.index(i, offsetBy: -1, limitedBy: string.startIndex)
@@ -217,30 +217,30 @@ private struct Base32 {
 private extension Data {
     
     #if swift(>=4)
-        init<T: BinaryInteger>(from value: T) {
-            let valuePointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
-            defer {
-                valuePointer.deallocate(capacity: 1)
-            }
-            
-            valuePointer.pointee = value
-            
-            let bytesPointer = valuePointer.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<UInt8>.size) { $0 }
-            
-            self.init(bytes: bytesPointer, count: MemoryLayout<T>.size)
-        }
-    #else
-        init<T: Integer>(from value: T) {
-            let valuePointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
-            defer {
+    init<T: BinaryInteger>(from value: T) {
+        let valuePointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
+        defer {
             valuePointer.deallocate(capacity: 1)
-            }
-    
-            valuePointer.pointee = value
-    
-            let bytesPointer = valuePointer.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<UInt8>.size) { $0 }
-    
-            self.init(bytes: bytesPointer, count: MemoryLayout<T>.size)
         }
+        
+        valuePointer.pointee = value
+        
+        let bytesPointer = valuePointer.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<UInt8>.size) { $0 }
+        
+        self.init(bytes: bytesPointer, count: MemoryLayout<T>.size)
+    }
+    #else
+    init<T: Integer>(from value: T) {
+    let valuePointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
+    defer {
+    valuePointer.deallocate(capacity: 1)
+    }
+    
+    valuePointer.pointee = value
+    
+    let bytesPointer = valuePointer.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<UInt8>.size) { $0 }
+    
+    self.init(bytes: bytesPointer, count: MemoryLayout<T>.size)
+    }
     #endif
 }

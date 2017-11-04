@@ -35,7 +35,19 @@ private extension Document {
         self["apiVersion"] = json["api_version"]?.string ?? self["apiVersion"]
     }
     
-    func sendEmail(_ drop: Droplet, objectId: ObjectId, to: String, subject: String) {
+    func sendAlert(_ drop: Droplet, objectId: ObjectId, to: String?, subject: String) {
+        if Admin.settings.messageSendEmail, let to = to {
+            sendEmail(drop, objectId: objectId, to: to, subject: subject)
+        }
+        if Admin.settings.messageSendApns {
+            sendPush(objectId: objectId, subject: subject)
+        }
+        if Admin.settings.messageSendSlack {
+            sendSlack(drop, objectId: objectId, subject: subject)
+        }
+    }
+    
+    private func sendEmail(_ drop: Droplet, objectId: ObjectId, to: String, subject: String) {
         let data: NodeRepresentable = [
             "title": subject,
             "from": stringValue("from"),
@@ -51,11 +63,35 @@ private extension Document {
         }
     }
     
-    func sendPush(objectId: ObjectId, subject: String) {
+    private func sendPush(objectId: ObjectId, subject: String) {
         if let from = self["from"] as? String {
             let mediaCount = self["numMedia"]?.intValue ?? 0
             let body = (self["body"] as? String) ?? (mediaCount > 0 ? "Image" : "")
             PushProvider.sendPush(threadId: objectId.hexString, title: from, body: body)
+        }
+    }
+    
+    private func sendSlack(_ drop: Droplet, objectId: ObjectId, subject: String) {
+        guard let webHookUrl = Admin.settings.slackWebHookUrl, let from = self["from"] as? String else { return }
+        let mediaCount = self["numMedia"]?.intValue ?? 0
+        let body = (self["body"] as? String) ?? (mediaCount > 0 ? "Image" : "")
+        
+        do {
+            let json: JSON = [
+                "attachments": [
+                    [
+                        "fallback": JSON.string("\(body)\nFrom: \(from)"),
+                        "title": JSON.string(body),
+                        "footer": JSON.string(from),
+                        "ts": JSON.number(.double((self["dateCreated"] as? Date ?? Date()).timeIntervalSince1970))
+                    ]
+                ]
+            ]
+            _ = try drop.client.post(webHookUrl, [
+                "Content-Type": "application/json"
+            ], json)
+        } catch let error {
+            Logger.error("Error Sending Slack: \(error)")
         }
     }
 }
@@ -64,8 +100,8 @@ extension Message {
     
     // MARK: - Methods
     
-    static func routes(_ drop: Droplet, _ group: RouteBuilder, authenticationMiddleware: AuthenticationMiddleware) {
-        let protected = group.grouped([authenticationMiddleware])
+    static func routes(_ drop: Droplet, _ group: RouteBuilder) {
+        let protected = group.grouped([AuthenticationMiddleware.shared])
         
         // MARK: Send Message
         protected.post { request in
@@ -273,10 +309,7 @@ extension Message {
                 throw ServerAbort(.notFound, reason: "Error creating message")
             }
             
-            if Admin.settings.messageSendEmail {
-                document.sendEmail(drop, objectId: objectId, to: Admin.settings.notificationEmail, subject: "Message Received")
-            }
-            document.sendPush(objectId: objectId, subject: "Message Received")
+            document.sendAlert(drop, objectId: objectId, to: Admin.settings.notificationEmail, subject: "Message Received")
             
             return Response(status: .ok)
         }
@@ -359,10 +392,7 @@ extension Message {
                 }
             }
             
-            if Admin.settings.messageSendEmail {
-                document.sendEmail(drop, objectId: objectId, to: account["notificationEmail"] as? String ?? Admin.settings.notificationEmail, subject: "Message Received")
-            }
-            document.sendPush(objectId: objectId, subject: "Message Received")
+            document.sendAlert(drop, objectId: objectId, to: account["notificationEmail"] as? String ?? Admin.settings.notificationEmail, subject: "Message Received")
             
             let responseString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>"
             return Response(
@@ -422,7 +452,7 @@ extension Message {
                     let string = "<option value=\"\(id.hexString)\">\(accountName)</option>"
                     accountData.append(string)
                 }
-                if accountData.characters.count == 0 {
+                if accountData.isEmpty {
                     accountData = "<option value=\"none\">No Accounts</option>"
                 }
                 

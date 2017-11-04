@@ -10,6 +10,10 @@ import Vapor
 import MongoKitten
 import SMTP
 
+private enum AlertType {
+    case faxReceived, faxStatus
+}
+
 private extension Document {
     
     // MARK: - Methods
@@ -41,7 +45,19 @@ private extension Document {
         self["mediaUrl"] = json["media_url"]?.string ?? self["mediaUrl"]
     }
     
-    func sendEmail(_ drop: Droplet, objectId: ObjectId, to: String, subject: String) {
+    func sendAlert(_ drop: Droplet, objectId: ObjectId, to: String?, subject: String, alertType: AlertType) {
+        if (alertType == .faxStatus ? Admin.settings.faxStatusSendEmail : Admin.settings.faxReceivedSendEmail), let to = to {
+            sendEmail(drop, objectId: objectId, to: to, subject: subject)
+        }
+        if (alertType == .faxStatus ? Admin.settings.faxStatusSendApns : Admin.settings.faxReceivedSendApns) {
+            sendPush(objectId: objectId, subject: subject)
+        }
+        if (alertType == .faxStatus ? Admin.settings.faxStatusSendSlack : Admin.settings.faxReceivedSendSlack) {
+            sendSlack(drop, objectId: objectId, subject: subject)
+        }
+    }
+    
+    private func sendEmail(_ drop: Droplet, objectId: ObjectId, to: String, subject: String) {
         guard let url = Admin.settings.domain else {
             Logger.error("Error Sending Email: No host URL set in settings")
             return
@@ -66,9 +82,51 @@ private extension Document {
         }
     }
     
-    func sendPush(objectId: ObjectId, subject: String) {
+    private func sendPush(objectId: ObjectId, subject: String) {
         if let from = self["from"] as? String, let to = self["to"] as? String, let status = (self["status"] as? String)?.capitalized {
             PushProvider.sendPush(threadId: objectId.hexString, title: subject, body: "Status: \(status) From: \(from) To: \(to)")
+        }
+    }
+    
+    private func sendSlack(_ drop: Droplet, objectId: ObjectId, subject: String) {
+        guard let webHookUrl = Admin.settings.slackWebHookUrl, let from = self["from"] as? String, let to = self["to"] as? String, let status = (self["status"] as? String)?.capitalized else { return }
+        guard let url = Admin.settings.domain else {
+            Logger.error("Error Sending Email: No host URL set in settings")
+            return
+        }
+        let mediaUrl = "\(url)/fax/file/\(objectId.hexString)"
+        
+        do {
+            let json: JSON = [
+                "attachments": [
+                    [
+                        "fallback": JSON.string("<\(mediaUrl)|\(subject)> Status: \(status) From: \(from) To: \(to)"),
+                        "title": JSON.string("\(subject)"),
+                        "title_link": JSON.string(mediaUrl),
+                        "fields": [
+                            [
+                                "title": "Status",
+                                "value": JSON.string(subject),
+                                "short": false
+                            ], [
+                                "title": "From",
+                                "value": JSON.string(from),
+                                "short": false
+                            ], [
+                                "title": "To",
+                                "value": JSON.string(to),
+                                "short": false
+                            ]
+                        ],
+                        "ts": JSON.number(.double((self["dateCreated"] as? Date ?? Date()).timeIntervalSince1970))
+                    ]
+                ]
+            ]
+            _ = try drop.client.post(webHookUrl, [
+                "Content-Type": "application/json"
+            ], json)
+        } catch let error {
+            Logger.error("Error Sending Slack: \(error)")
         }
     }
 }
@@ -77,8 +135,8 @@ extension Fax {
     
     // MARK: - Methods
     
-    static func routes(_ drop: Droplet, _ group: RouteBuilder, authenticationMiddleware: AuthenticationMiddleware) {
-        let protected = group.grouped([authenticationMiddleware])
+    static func routes(_ drop: Droplet, _ group: RouteBuilder) {
+        let protected = group.grouped([AuthenticationMiddleware.shared])
         
         // MARK: Twiml
         group.post("twiml") { _ in
@@ -177,8 +235,7 @@ extension Fax {
             
             try Fax.collection.update("_id" == objectId, to: document)
             
-            document.sendEmail(drop, objectId: objectId, to: senderEmail, subject: "Fax Sent")
-            document.sendPush(objectId: objectId, subject: "Fax Sent")
+            document.sendAlert(drop, objectId: objectId, to: senderEmail, subject: "Fax Sent", alertType: .faxStatus)
             
             if jsonResponse {
                 guard let document = try Fax.collection.findOne("_id" == objectId) else {
@@ -247,11 +304,8 @@ extension Fax {
             
             try Fax.collection.update("_id" == document.objectId, to: document)
             
-            if let senderEmail = document["senderEmail"] as? String, let objectId = document.objectId {
-                document.sendEmail(drop, objectId: objectId, to: senderEmail, subject: "Fax Status Update")
-            }
             if let objectId = document.objectId {
-                document.sendPush(objectId: objectId, subject: "Fax Status Update")
+                document.sendAlert(drop, objectId: objectId, to: document["senderEmail"] as? String, subject: "Fax Status Update", alertType: .faxStatus)
             }
             
             return Response(jsonStatus: .ok)
@@ -342,7 +396,7 @@ extension Fax {
                     let string = "<option value=\"\(id.hexString)\">\(accountName)</option>"
                     accountData.append(string)
                 }
-                if accountData.characters.count == 0 {
+                if accountData.isEmpty {
                     accountData = "<option value=\"none\">No Accounts</option>"
                 }
                 
@@ -448,8 +502,7 @@ extension Fax {
             
             try FaxFile.collection.insert(fileDocument)
             
-            document.sendEmail(drop, objectId: objectId, to: account["notificationEmail"] as? String ?? Admin.settings.notificationEmail, subject: "Fax Received")
-            document.sendPush(objectId: objectId, subject: "Fax Received")
+            document.sendAlert(drop, objectId: objectId, to: account["notificationEmail"] as? String ?? Admin.settings.notificationEmail, subject: "Fax Received", alertType: .faxStatus)
             
             return Response(jsonStatus: .ok)
         }

@@ -14,7 +14,7 @@ struct OAuth {
     
     // MARK: - Methods
     
-    static func routes(_ drop: Droplet, _ group: RouteBuilder, authenticationMiddleware: AuthenticationMiddleware) {
+    static func routes(_ drop: Droplet, _ group: RouteBuilder) {
         
         // MARK: Get Authorization Code
         group.get("authorize") { request in

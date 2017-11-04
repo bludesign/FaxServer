@@ -15,6 +15,8 @@ struct AccessToken {
     // MARK: - Parameters
     
     private static let expiresIn: Double = 43200
+    private static let renewalTime: Double = 1210000
+    static let cookieExpiresIn: Double = 604800
     
     static let collectionName = "accessToken"
     static var collection: MongoKitten.Collection {
@@ -33,7 +35,7 @@ struct AccessToken {
             "clientId": clientId,
             "createdAt": Date(),
             "tokenExpires": Date(timeIntervalSinceNow: AccessToken.expiresIn),
-            "endOfLife": Date(timeIntervalSinceNow: 1210000 + AccessToken.expiresIn),
+            "endOfLife": Date(timeIntervalSinceNow: AccessToken.renewalTime + AccessToken.expiresIn),
             "token": tokenHash,
             "refreshToken": refreshTokenHash,
             "source": source,
@@ -46,7 +48,7 @@ struct AccessToken {
     static func cookieToken(userId: ObjectId) throws -> (token: String, expires: Date) {
         let token = try String.tokenEncoded()
         let tokenHash = try Application.makeHash(token)
-        let expires = Date(timeIntervalSinceNow: 604800)
+        let expires = Date(timeIntervalSinceNow: AccessToken.cookieExpiresIn)
         let accessToken: Document = [
             "userId": userId,
             "createdAt": Date(),
@@ -68,7 +70,7 @@ struct AccessToken {
         let token = try String.tokenEncoded()
         let tokenHash = try Application.makeHash(token)
         accessToken["tokenExpires"] = Date(timeIntervalSinceNow: AccessToken.expiresIn)
-        accessToken["endOfLife"] = Date(timeIntervalSinceNow: 1210000 + AccessToken.expiresIn)
+        accessToken["endOfLife"] = Date(timeIntervalSinceNow: AccessToken.renewalTime + AccessToken.expiresIn)
         accessToken["token"] = tokenHash
         try AccessToken.collection.update("_id" == accessTokenId, to: accessToken)
         

@@ -16,13 +16,13 @@ extension Application {
         drop.get { _ in
             return Response(redirect: "/admin")
         }
-        Account.routes(drop, drop.grouped("account"), authenticationMiddleware: authenticationMiddleware)
-        Admin.routes(drop, drop.grouped("admin"), authenticationMiddleware: authenticationMiddleware)
-        Client.routes(drop, drop.grouped("client"), authenticationMiddleware: authenticationMiddleware)
-        Device.routes(drop, drop.grouped("device"), authenticationMiddleware: authenticationMiddleware)
-        Fax.routes(drop, drop.grouped("fax"), authenticationMiddleware: authenticationMiddleware)
-        Message.routes(drop, drop.grouped("message"), authenticationMiddleware: authenticationMiddleware)
-        OAuth.routes(drop, drop.grouped("oauth"), authenticationMiddleware: authenticationMiddleware)
-        User.routes(drop, drop.grouped("user"), authenticationMiddleware: authenticationMiddleware)
+        Account.routes(drop, drop.grouped("account"))
+        Admin.routes(drop, drop.grouped("admin"))
+        Client.routes(drop, drop.grouped("client"))
+        Device.routes(drop, drop.grouped("device"))
+        Fax.routes(drop, drop.grouped("fax"))
+        Message.routes(drop, drop.grouped("message"))
+        OAuth.routes(drop, drop.grouped("oauth"))
+        User.routes(drop, drop.grouped("user"))
     }
 }

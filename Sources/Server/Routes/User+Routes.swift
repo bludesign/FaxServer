@@ -15,8 +15,8 @@ extension User {
     
     // MARK: - Methods
     
-    static func routes(_ drop: Droplet, _ group: RouteBuilder, authenticationMiddleware: AuthenticationMiddleware) {
-        let protected = group.grouped([authenticationMiddleware])
+    static func routes(_ drop: Droplet, _ group: RouteBuilder) {
+        let protected = group.grouped([AuthenticationMiddleware.shared])
         
         // MARK: Get Users
         protected.get { request in
@@ -166,7 +166,7 @@ extension User {
             let password = try request.data.extract("password") as String
             
             do {
-                let cookie = try User.register(credentials: EmailPassword(email: email, password: password)).cookie()
+                let cookie = try User.register(credentials: EmailPassword(email: email, password: password)).cookie(domain: request.uri.domain)
                 let referrer = request.data["referrer"]?.string ?? "/user"
                 let response = Response(redirect: (referrer == "none" ? "/user" : referrer))
                 if referrer != "/user" {
@@ -253,7 +253,7 @@ extension User {
                         "referrer": request.data["referrer"]?.string ?? "none"
                     ])
                 }
-                let cookie = try user.cookie()
+                let cookie = try user.cookie(domain: request.uri.domain)
                 let referrer = request.data["referrer"]?.string ?? "/admin"
                 let response = Response(redirect: (referrer == "none" ? "/admin" : referrer))
                 response.cookies.insert(cookie)
@@ -287,7 +287,7 @@ extension User {
                     Admin.settings.domain = request.uri.domain
                     try Admin.settings.save()
                 }
-                let cookie = try user.cookie()
+                let cookie = try user.cookie(domain: request.uri.domain)
                 let referrer = request.data["referrer"]?.string ?? "/admin"
                 let response = Response(redirect: (referrer == "none" ? "/admin" : referrer))
                 if referrer != "/user" {
@@ -338,7 +338,7 @@ extension User {
                     Admin.settings.domain = request.uri.domain
                     try Admin.settings.save()
                 }
-                let cookie = try user.cookie()
+                let cookie = try user.cookie(domain: request.uri.domain)
                 let referrer = request.data["referrer"]?.string ?? "/admin"
                 let response = Response(redirect: (referrer == "none" ? "/admin" : referrer))
                 response.cookies.insert(cookie)

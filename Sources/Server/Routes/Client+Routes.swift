@@ -14,8 +14,8 @@ extension Client {
     
     // MARK: - Methods
     
-    static func routes(_ drop: Droplet, _ group: RouteBuilder, authenticationMiddleware: AuthenticationMiddleware) {
-        let protected = group.grouped([authenticationMiddleware])
+    static func routes(_ drop: Droplet, _ group: RouteBuilder) {
+        let protected = group.grouped([AuthenticationMiddleware.shared])
         
         func getClients(request: Request, client: (clientId: String, clientSecret: String, resetSecret: Bool)? = nil) throws -> ResponseRepresentable {
             let skip = request.data["skip"]?.int ?? 0
@@ -28,9 +28,10 @@ extension Client {
             } else {
                 var tableData: String = ""
                 for document in documents {
-                    guard let name = document["name"], let website = document["website"], let redirectUri = document["redirectUri"], let id = document.objectId else {
-                        continue
-                    }
+                    let id = try document.extractObjectId()
+                    let name = try document.extractString("name")
+                    let website = try document.extractString("website")
+                    let redirectUri = try document.extractString("redirectUri")
                     let string = "<tr onclick=\"location.href='/client/\(id.hexString)'\"><td>\(name)</td><td>\(id.hexString)</td><td>\(website)</td><td>\(redirectUri)</td></tr>"
                     tableData.append(string)
                 }

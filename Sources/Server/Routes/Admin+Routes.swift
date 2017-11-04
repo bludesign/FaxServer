@@ -13,8 +13,8 @@ extension Admin {
     
     // MARK: - Methods
     
-    static func routes(_ drop: Droplet, _ group: RouteBuilder, authenticationMiddleware: AuthenticationMiddleware) {
-        let protected = group.grouped([authenticationMiddleware])
+    static func routes(_ drop: Droplet, _ group: RouteBuilder) {
+        let protected = group.grouped([AuthenticationMiddleware.shared])
         
         // MARK: Get Settings
         protected.get { request in
@@ -23,8 +23,19 @@ extension Admin {
                     "registrationEnabled": (Admin.settings.registrationEnabled ? "true" : "false"),
                     "secureCookie": (Admin.settings.secureCookie ? "true" : "false"),
                     "nexmoEnabled": (Admin.settings.nexmoEnabled ? "true" : "false"),
+                    "messageSendEmail": (Admin.settings.messageSendEmail ? "true" : "false"),
+                    "faxReceivedSendEmail": (Admin.settings.faxReceivedSendEmail ? "true" : "false"),
+                    "faxStatusSendEmail": (Admin.settings.faxStatusSendEmail ? "true" : "false"),
+                    "messageSendApns": (Admin.settings.messageSendApns ? "true" : "false"),
+                    "faxReceivedSendApns": (Admin.settings.faxReceivedSendApns ? "true" : "false"),
+                    "faxStatusSendApns": (Admin.settings.faxStatusSendApns ? "true" : "false"),
+                    "messageSendSlack": (Admin.settings.messageSendSlack ? "true" : "false"),
+                    "faxReceivedSendSlack": (Admin.settings.faxReceivedSendSlack ? "true" : "false"),
+                    "faxStatusSendSlack": (Admin.settings.faxStatusSendSlack ? "true" : "false"),
                     "notificationEmail": Admin.settings.notificationEmail,
                     "mailgunFromEmail": Admin.settings.mailgunFromEmail,
+                    "mailgunApiUrl": Admin.settings.mailgunApiUrl,
+                    "slackWebHookUrl": Admin.settings.slackWebHookUrl,
                     "timeZone": Admin.settings.timeZone,
                     "domain": Admin.settings.domain
                 ]
@@ -51,6 +62,15 @@ extension Admin {
                     (Admin.settings.registrationEnabled ? "userRegistrationEnabled" : "userRegistrationDisabled"): "checked",
                     (Admin.settings.secureCookie ? "secureCookieEnabled" : "secureCookieDisabled"): "checked",
                     (Admin.settings.nexmoEnabled ? "nexmoEnabled" : "nexmoDisabled"): "checked",
+                    (Admin.settings.messageSendEmail ? "messageSendEmailEnabled" : "messageSendEmailDisabled"): "checked",
+                    (Admin.settings.faxReceivedSendEmail ? "faxReceivedSendEmailEnabled" : "faxReceivedSendEmailDisabled"): "checked",
+                    (Admin.settings.faxStatusSendEmail ? "faxStatusSendEmailEnabled" : "faxStatusSendEmailDisabled"): "checked",
+                    (Admin.settings.messageSendApns ? "messageSendApnsEnabled" : "messageSendApnsDisabled"): "checked",
+                    (Admin.settings.faxReceivedSendApns ? "faxReceivedSendApnsEnabled" : "faxReceivedSendApnsDisabled"): "checked",
+                    (Admin.settings.faxStatusSendApns ? "faxStatusSendApnsEnabled" : "faxStatusSendApnsDisabled"): "checked",
+                    (Admin.settings.messageSendSlack ? "messageSendSlackEnabled" : "messageSendSlackDisabled"): "checked",
+                    (Admin.settings.faxReceivedSendSlack ? "faxReceivedSendSlackEnabled" : "faxReceivedSendSlackDisabled"): "checked",
+                    (Admin.settings.faxStatusSendSlack ? "faxStatusSendSlackEnabled" : "faxStatusSendSlackDisabled"): "checked",
                     "notificationEmail": Admin.settings.notificationEmail,
                     "mailgunFromEmail": Admin.settings.mailgunFromEmail,
                     "mailgunApiUrl": Admin.settings.mailgunApiUrl,
@@ -58,6 +78,7 @@ extension Admin {
                     "apnsTeamId": Admin.settings.apnsTeamId,
                     "apnsKeyId": Admin.settings.apnsKeyId,
                     "apnsKeyPath": Admin.settings.apnsKeyPath,
+                    "slackWebHookUrl": Admin.settings.slackWebHookUrl,
                     "timeZoneData": timeZoneData,
                     "domain": Admin.settings.domain
                 ])
@@ -120,12 +141,45 @@ extension Admin {
                 Admin.settings.apnsKeyPath = apnsKeyPath
                 apnsUpdated = true
             }
-            
-            try Admin.settings.save()
-            
             if apnsUpdated {
                 PushProvider.startApns()
             }
+            
+            if let slackWebHookUrl = try? request.data.extract("slackWebHookUrl") as String {
+                Admin.settings.slackWebHookUrl = slackWebHookUrl
+            }
+            
+            if let messageSendEmail = try? request.data.extract("messageSendEmail") as Bool {
+                Admin.settings.messageSendEmail = messageSendEmail
+            }
+            if let faxReceivedSendEmail = try? request.data.extract("faxReceivedSendEmail") as Bool {
+                Admin.settings.faxReceivedSendEmail = faxReceivedSendEmail
+            }
+            if let faxStatusSendEmail = try? request.data.extract("faxStatusSendEmail") as Bool {
+                Admin.settings.faxStatusSendEmail = faxStatusSendEmail
+            }
+            
+            if let messageSendApns = try? request.data.extract("messageSendApns") as Bool {
+                Admin.settings.messageSendApns = messageSendApns
+            }
+            if let faxReceivedSendApns = try? request.data.extract("faxReceivedSendApns") as Bool {
+                Admin.settings.faxReceivedSendApns = faxReceivedSendApns
+            }
+            if let faxStatusSendApns = try? request.data.extract("faxStatusSendApns") as Bool {
+                Admin.settings.faxStatusSendApns = faxStatusSendApns
+            }
+            
+            if let messageSendSlack = try? request.data.extract("messageSendSlack") as Bool {
+                Admin.settings.messageSendSlack = messageSendSlack
+            }
+            if let faxReceivedSendSlack = try? request.data.extract("faxReceivedSendSlack") as Bool {
+                Admin.settings.faxReceivedSendSlack = faxReceivedSendSlack
+            }
+            if let faxStatusSendSlack = try? request.data.extract("faxStatusSendSlack") as Bool {
+                Admin.settings.faxStatusSendSlack = faxStatusSendSlack
+            }
+            
+            try Admin.settings.save()
             
             if request.jsonResponse {
                 return Response(jsonStatus: .unauthorized)

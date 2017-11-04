@@ -27,6 +27,8 @@ private extension URI {
 
 final class AuthenticationMiddleware: Middleware {
     
+    static var shared = AuthenticationMiddleware()
+    
     // MARK: - Methods
     
     func respond(to request: Request, chainingTo next: Responder) throws -> Response {
@@ -59,6 +61,12 @@ extension Request {
             guard let tokenExpiration = accessToken["tokenExpires"] as? Date else { return nil }
             guard Date() < tokenExpiration else { return nil }
             guard let userId = accessToken["userId"] as? ObjectId else { return nil }
+            if tokenExpiration.timeIntervalSinceReferenceDate - 432000 < Date().timeIntervalSinceReferenceDate, let objectId = accessToken.objectId {
+                let expirationDate = Date(timeIntervalSinceNow: AccessToken.cookieExpiresIn)
+                accessToken["tokenExpires"] = expirationDate
+                accessToken["endOfLife"] = expirationDate
+                try AccessToken.collection.update("_id" == objectId, to: accessToken)
+            }
             storage["userId"] = userId
             return userId
         } catch {

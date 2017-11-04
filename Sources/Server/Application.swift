@@ -17,7 +17,6 @@ public final class Application {
     
     static let shared = Application()
     
-    var authenticationMiddleware = AuthenticationMiddleware()
     var database: MongoKitten.Database!
     var random: URandom
     var drop: Droplet

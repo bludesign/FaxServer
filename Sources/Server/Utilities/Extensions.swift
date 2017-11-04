@@ -56,6 +56,57 @@ extension ObjectId: NodeConvertible {
     }
 }
 
+extension Document {
+    func extractObjectId() throws -> ObjectId {
+        guard let value = objectId else {
+            throw ServerAbort(.notFound, reason: "objectId is required")
+        }
+        return value
+    }
+    func extractObjectId(_ key: String) throws -> ObjectId {
+        guard let value = self[key] as? ObjectId  else {
+            throw ServerAbort(.notFound, reason: "\(key) is required")
+        }
+        return value
+    }
+    func extractInteger(_ key: String) throws -> Int {
+        guard let value = self[key]?.intValue else {
+            throw ServerAbort(.notFound, reason: "\(key) is required")
+        }
+        return value
+    }
+    func extractIntegerString(_ key: String) throws -> String {
+        guard let value = self[key]?.intValue, let valueString = Formatter.numberFormatter.string(for: value) else {
+            throw ServerAbort(.notFound, reason: "\(key) is required")
+        }
+        return valueString
+    }
+    func extractDouble(_ key: String) throws -> Double {
+        guard let value = self[key]?.doubleValue else {
+            throw ServerAbort(.notFound, reason: "\(key) is required")
+        }
+        return value
+    }
+    func extractBoolean(_ key: String) throws -> Bool {
+        guard let value = self[key] as? Bool else {
+            throw ServerAbort(.notFound, reason: "\(key) is required")
+        }
+        return value
+    }
+    func extractString(_ key: String) throws -> String {
+        guard let value = self[key] as? String, value.isEmpty == false else {
+            throw ServerAbort(.notFound, reason: "\(key) is required")
+        }
+        return value
+    }
+    func extractDate(_ key: String) throws -> Date {
+        guard let value = self[key] as? Date else {
+            throw ServerAbort(.notFound, reason: "\(key) is required")
+        }
+        return value
+    }
+}
+
 extension Content {
     func extract<T: NodeConvertible>(_ key: String) throws -> T {
         guard let value = self[key] else {
@@ -175,7 +226,7 @@ extension CollectionSlice where Element == Document {
 
 extension Response {
     convenience init(jsonStatus status: Status) {
-        self.init(status: status, headers: ["Content-Type": "application/json; charset=utf-8"])
+        self.init(status: status, headers: ["Content-Type": "application/json; charset=utf-8"], body: [:].serialize())
     }
 }
 
@@ -329,7 +380,7 @@ extension String {
     }
     var numberString: String {
         guard let number = Formatter.numberFormatter.number(from: self) else {
-             return self
+            return self
         }
         return Formatter.numberFormatter.string(from: number) ?? self
     }
@@ -421,12 +472,20 @@ extension Formatter {
         dateFormatter.timeZone = TimeZone(identifier: Admin.settings.timeZone)
         return dateFormatter
     }()
-    static let iso8601: DateFormatter = {
+    static let twilioIso8601: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssX"
+        return formatter
+    }()
+    static let iso8601: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
         return formatter
     }()
     static let numberFormatter: NumberFormatter = {
@@ -448,6 +507,13 @@ extension StructuredDataWrapper {
         guard let dateString = self.string else {
             return nil
         }
-        return Formatter.iso8601.date(from: dateString)
+        return Formatter.twilioIso8601.date(from: dateString)
+    }
+    
+    var objectId: ObjectId? {
+        guard let string = self.string else {
+            return nil
+        }
+        return try? ObjectId(string)
     }
 }

@@ -60,24 +60,6 @@ struct Admin {
         }
     }
     
-    var messageSendEmail: Bool {
-        get {
-            return document["messageSendEmail"] as? Bool ?? false
-        }
-        set {
-            document["messageSendEmail"] = newValue
-        }
-    }
-    
-    var notificationEmail: String {
-        get {
-            return document["notificationEmail"] as? String ?? Constants.defaultEmail
-        }
-        set {
-            document["notificationEmail"] = newValue
-        }
-    }
-    
     var nexmoEnabled: Bool {
         get {
             return document["nexmoEnabled"] as? Bool ?? true
@@ -141,6 +123,42 @@ struct Admin {
         }
     }
     
+    var notificationEmail: String {
+        get {
+            return document["notificationEmail"] as? String ?? Constants.defaultEmail
+        }
+        set {
+            document["notificationEmail"] = newValue
+        }
+    }
+    
+    var messageSendEmail: Bool {
+        get {
+            return document["messageSendEmail"] as? Bool ?? false
+        }
+        set {
+            document["messageSendEmail"] = newValue
+        }
+    }
+    
+    var faxReceivedSendEmail: Bool {
+        get {
+            return document["faxReceivedSendEmail"] as? Bool ?? true
+        }
+        set {
+            document["faxReceivedSendEmail"] = newValue
+        }
+    }
+    
+    var faxStatusSendEmail: Bool {
+        get {
+            return document["faxStatusSendEmail"] as? Bool ?? true
+        }
+        set {
+            document["faxStatusSendEmail"] = newValue
+        }
+    }
+    
     // MARK: - APNS
     
     var apnsBundleId: String? {
@@ -176,6 +194,71 @@ struct Admin {
         }
         set {
             document["apnsKeyPath"] = newValue
+        }
+    }
+    
+    var messageSendApns: Bool {
+        get {
+            return document["messageSendApns"] as? Bool ?? true
+        }
+        set {
+            document["messageSendApns"] = newValue
+        }
+    }
+    
+    var faxReceivedSendApns: Bool {
+        get {
+            return document["faxReceivedSendApns"] as? Bool ?? true
+        }
+        set {
+            document["faxReceivedSendApns"] = newValue
+        }
+    }
+    
+    var faxStatusSendApns: Bool {
+        get {
+            return document["faxStatusSendApns"] as? Bool ?? true
+        }
+        set {
+            document["faxStatusSendApns"] = newValue
+        }
+    }
+    
+    // MARK: - Slack
+    
+    var slackWebHookUrl: String? {
+        get {
+            return document["slackWebHookUrl"] as? String
+        }
+        set {
+            document["slackWebHookUrl"] = newValue
+        }
+    }
+    
+    var messageSendSlack: Bool {
+        get {
+            return document["messageSendSlack"] as? Bool ?? true
+        }
+        set {
+            document["messageSendSlack"] = newValue
+        }
+    }
+    
+    var faxReceivedSendSlack: Bool {
+        get {
+            return document["faxReceivedSendSlack"] as? Bool ?? true
+        }
+        set {
+            document["faxReceivedSendSlack"] = newValue
+        }
+    }
+    
+    var faxStatusSendSlack: Bool {
+        get {
+            return document["faxStatusSendSlack"] as? Bool ?? true
+        }
+        set {
+            document["faxStatusSendSlack"] = newValue
         }
     }
     

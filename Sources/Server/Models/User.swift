@@ -71,9 +71,17 @@ struct User {
         return token
     }
     
-    func cookie() throws -> Cookie {
+    func cookie(domain: String) throws -> Cookie {
         let token = try accessToken()
-        return Cookie(name: "Server-Auth", value: token.token, expires: token.expires, domain: Admin.settings.domainHostname ?? "127.0.0.1", secure: Application.shared.drop.config.environment == .production && Admin.settings.secureCookie, httpOnly: true, sameSite: .strict)
+        let hostName: String
+        if Admin.settings.secureCookie == false, let url = URL(string: domain), let host = url.host {
+            hostName = host
+        } else if let host = Admin.settings.domainHostname {
+            hostName = host
+        } else {
+            hostName = "127.0.0.1"
+        }
+        return Cookie(name: "Server-Auth", value: token.token, expires: token.expires, domain: hostName, secure: Application.shared.drop.config.environment == .production && Admin.settings.secureCookie, httpOnly: true, sameSite: .strict)
     }
     
     func authorizationCode(redirectUri: String, clientId: ObjectId, scope: String, state: String? = nil) throws -> String {
@@ -81,8 +89,10 @@ struct User {
             guard let totpCode = totpCode else {
                 throw ServerAbort.init(.unauthorized, reason: "2FA authencation code required")
             }
+            
+            let oldKey = try TOTP.generate(key: totpToken, timeInterval: Date().timeIntervalSince1970 - 25)
             let key = try TOTP.generate(key: totpToken)
-            guard key == totpCode else {
+            guard key == totpCode || oldKey == totpCode else {
                 throw ServerAbort.init(.unauthorized, reason: "2FA authencation code invalid")
             }
         }
