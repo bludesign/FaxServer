@@ -142,7 +142,6 @@ extension Message {
             
             let mediaUrl: String?
             if let bytes = request.data["file"]?.bytes, bytes.count > 0 {
-                let fileToken = try String.token()
                 let mimeType: String
                 switch bytes[0] {
                 case 0xFF: mimeType = "image/jpeg"
@@ -153,7 +152,7 @@ extension Message {
                 }
                 let fileDocument: Document = [
                     "messageObjectId": objectId,
-                    "token": fileToken,
+                    "token": token,
                     "dateCreated": Date(),
                     "mimeType": mimeType,
                     "data": Data(bytes: bytes)
@@ -161,7 +160,7 @@ extension Message {
                 guard let fileObjectId = try MessageFile.collection.insert(fileDocument) as? ObjectId else {
                     throw ServerAbort(.notFound, reason: "Error creating message file")
                 }
-                mediaUrl = "\(url)/message/file/\(fileObjectId.hexString)/\(fileToken)"
+                mediaUrl = "\(url)/message/file/\(fileObjectId.hexString)/\(token)"
             } else {
                 mediaUrl = nil
             }

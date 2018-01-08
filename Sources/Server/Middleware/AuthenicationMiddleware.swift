@@ -59,9 +59,10 @@ extension Request {
             let tokenHash = try Application.makeHash(token)
             guard var accessToken = try AccessToken.collection.findOne("token" == tokenHash) else { return nil }
             guard let tokenExpiration = accessToken["tokenExpires"] as? Date else { return nil }
+            guard let source = accessToken["source"] as? String else { return nil }
             guard Date() < tokenExpiration else { return nil }
             guard let userId = accessToken["userId"] as? ObjectId else { return nil }
-            if tokenExpiration.timeIntervalSinceReferenceDate - 432000 < Date().timeIntervalSinceReferenceDate, let objectId = accessToken.objectId {
+            if tokenExpiration.timeIntervalSinceReferenceDate - 432000 < Date().timeIntervalSinceReferenceDate, let objectId = accessToken.objectId, source == "cookie" {
                 let expirationDate = Date(timeIntervalSinceNow: AccessToken.cookieExpiresIn)
                 accessToken["tokenExpires"] = expirationDate
                 accessToken["endOfLife"] = expirationDate

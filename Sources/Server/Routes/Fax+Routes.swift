@@ -179,7 +179,6 @@ extension Fax {
             }
             
             let token = try String.token()
-            let fileToken = try String.token()
             let fromString = request.data["from"]?.string ?? phoneNumber
             
             var document: Document = [
@@ -191,7 +190,8 @@ extension Fax {
                 "senderEmail": senderEmail,
                 "status": "started",
                 "dateCreated": Date(),
-                "accountId": accountId
+                "accountId": accountId,
+                "direction": "outbound"
             ]
             guard let objectId = try Fax.collection.insert(document) as? ObjectId else {
                 throw ServerAbort(.notFound, reason: "Error creating fax")
@@ -199,7 +199,7 @@ extension Fax {
             
             let fileDocument: Document = [
                 "faxObjectId": objectId,
-                "token": fileToken,
+                "token": token,
                 "dateCreated": Date(),
                 "data": Data(bytes: bytes)
             ]
@@ -216,7 +216,7 @@ extension Fax {
             request.body = .data(try Node(node: [
                 "From": fromString,
                 "To": toString,
-                "MediaUrl": "\(url)/fax/file/\(objectId.hexString)/\(fileToken)",
+                "MediaUrl": "\(url)/fax/file/\(objectId.hexString)/\(token)",
                 "StatusCallback": "\(url)/fax/status/\(objectId.hexString)/\(token)"
             ]).formURLEncodedPlus())
             
@@ -444,6 +444,7 @@ extension Fax {
                 throw ServerAbort(.notFound, reason: "Account not found")
             }
             let authToken = try account.extract("authToken") as String
+            let token = try String.token()
             
             var document: Document = [
                 "sid": sid,
@@ -457,7 +458,8 @@ extension Fax {
                 "pages": request.data["NumPages"]?.int,
                 "mediaUrl": request.data["MediaUrl"]?.string,
                 "errorCode": request.data["ErrorCode"]?.string,
-                "errorMessage": request.data["ErrorMessage"]?.string
+                "errorMessage": request.data["ErrorMessage"]?.string,
+                "token": token
             ]
             
             guard let responseBytes = try drop.client.get("\(Constants.Twilio.faxUrl)/Faxes/\(sid)", [
@@ -491,11 +493,10 @@ extension Fax {
             guard let bytes = response.body.bytes else {
                 throw ServerAbort(.notFound, reason: "No response body")
             }
-            let fileToken = try String.token()
             
             let fileDocument: Document = [
                 "faxObjectId": objectId,
-                "token": fileToken,
+                "token": token,
                 "dateCreated": Date(),
                 "data": Data(bytes: bytes)
             ]

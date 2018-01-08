@@ -87,6 +87,10 @@ extension Admin {
         
         // MARK: Update Settings
         protected.post { request in
+            if request.data["action"]?.string == "testPush" {
+                PushProvider.sendPush(threadId: "test", title: "Test Notification", body: "Test Push Notification")
+                return Response(redirect: "/admin")
+            }
             if let domain = try? request.data.extract("domain") as String {
                 guard let url = URL(string: domain), let domain = url.domain else {
                     throw ServerAbort(.badRequest, reason: "Domain format is invalid")

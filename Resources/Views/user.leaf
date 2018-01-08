@@ -113,6 +113,45 @@
                         </div>
                     </form>
                 </div>
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa fa-align-justify"></i> Push Devices
+                    </div>
+                    <div class="card-block">
+                        <table class="table table-hover table-responsive">
+                            <thead>
+                                <tr>
+                                    <th>Device Name</th>
+                                    <th>Updated At</th>
+                                    <th>Token</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                #raw(tableData)
+                            </tbody>
+                        </table>
+                        <ul class="pagination">
+                            <li class="page-item">
+                                <a class="page-link" href="#(prevPage)" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                    <span class="sr-only">Previous</span>
+                                </a>
+                            </li>
+                            #raw(pageData)
+                            <li class="page-item">
+                                <a class="page-link" href="#(nextPage)" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                    <span class="sr-only">Next</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-footer">
+                        <form class="form-signin" action="/device/testPush" method="post">
+                            <button type="submit" class="btn btn-sm btn-success" name="action" value="testPush"><i class="fa fa-dot-circle-o"></i> Send Test Push</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

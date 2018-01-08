@@ -98,9 +98,41 @@ extension User {
             if request.jsonResponse {
                 return try document.makeResponse()
             } else {
+                let pageInfo = request.pageInfo
+                let devices = try Device.collection.find("userId" == objectId, sortedBy: ["updatedAt": .ascending], skipping: pageInfo.skip, limitedTo: pageInfo.limit, withBatchSize: pageInfo.limit)
+                
+                let link = "/users/\(objectId.hexString)?"
+                var pages = try (devices.count() / pageInfo.limit) + 1
+                let startPage: Int
+                if pages > 7 {
+                    let firstPage = pageInfo.page - 3
+                    let lastPage = pageInfo.page + 2
+                    startPage = max(pageInfo.page - 3 - (lastPage > pages ? lastPage - pages : 0), 0)
+                    pages = min(pages, lastPage - (firstPage < 0 ? firstPage : 0))
+                } else {
+                    startPage = 0
+                }
+                var pageData: String = ""
+                for x in startPage..<pages {
+                    pageData.append("<li class=\"page-item\(x == pageInfo.page - 1 ? " active" : "")\"><a class=\"page-link\" href=\"\(link)page=\(x + 1)\">\(x + 1)</a></li>")
+                }
+                var tableData: String = ""
+                for device in devices {
+                    let deviceName = try device.extractString("deviceName")
+                    let lastActionDate = try device.extractDate("updatedAt")
+                    let deviceToken = try device.extractString("deviceToken")
+                    let string = "<tr><td>\(deviceName)</td><td>\(lastActionDate.longString)</td><td>\(deviceToken)</td></tr>"
+                    tableData.append(string)
+                }
+                
                 let email = try document.extract("email") as String
                 let totpActivated = try? document.extract("totpActivated") as Bool
                 return try drop.view.make("user", [
+                    "tableData": tableData,
+                    "pageData": pageData,
+                    "page": pageInfo.page,
+                    "nextPage": (pageInfo.page + 1 > pages.count ? "#" : "/\(link)page=\(pageInfo.page + 1)"),
+                    "prevPage": (pageInfo.page - 1 <= 0 ? "#" : "\(link)page=\(pageInfo.page - 1)"),
                     "userId": objectId.hexString,
                     "email": email,
                     "totpActivated": totpActivated ?? false

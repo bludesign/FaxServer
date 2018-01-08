@@ -111,3 +111,16 @@ First visit the Fax Server's address and register a new user account after you c
 - [Advanced Users] Enabled secure (HTTPS Only) cookies in settings. This should only be done if you only access your server over a HTTPS connection and will restrict logins to HTTPS only. Note if you enable this you will not be able to sign in over an insecure (HTTP) connection to turn if off.
 - [Advanced Users] Enable 2 factor authentication (TOTP) login, under Users select your user account and activate 2 factor authentication. Note there is no way to reset this if you loose your TOTP secret key.
 - [Advanced Users] If you will not be receiving Nexmo SMS messages the webhook can be disabled in Fax Server settings.
+
+### 📱 iOS App Setup
+
+![Fax Server](https://media.bludesign.biz/fax_client.png)
+
+- Open Clients in Fax Server and create a client with the above values.
+- After creating the client copy the Client ID and Client Secret and fill them into the iOS app along with your servers URL.
+
+<p align="center">
+	<a href="https://itunes.apple.com/us/app/fax-server/id1331048085?ls=1&mt=8">
+		<img src="https://media.bludesign.biz/appstore.svg" alt="App Store">
+	</a>
+</p>

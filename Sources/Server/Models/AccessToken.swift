@@ -67,6 +67,10 @@ struct AccessToken {
             throw ServerAbort(.unauthorized, reason: "Refresh token not found")
         }
         let scope = try accessToken.extract("scope") as String
+        let source = try accessToken.extract("source") as String
+        guard source == "oauth" else {
+            throw ServerAbort(.unauthorized, reason: "Access token is not valid")
+        }
         let token = try String.tokenEncoded()
         let tokenHash = try Application.makeHash(token)
         accessToken["tokenExpires"] = Date(timeIntervalSinceNow: AccessToken.expiresIn)

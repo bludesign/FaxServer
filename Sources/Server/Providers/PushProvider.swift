@@ -40,7 +40,6 @@ final class PushProvider: Vapor.Provider {
 
     static func sendPush(threadId: String, title: String, body: String, userId: ObjectId? = nil) {
         let payload = Payload(title: title, body: body)
-        payload.threadId = threadId
         do {
             let devices: CollectionSlice<Document>
             if let userId = userId {
