@@ -1,5 +1,5 @@
 {
     "database": "vapor",
-    "port": "27017",
+    "port": "$MONGO_PORT:27017",
     "host": "$MONGO_HOST:localhost"
 }
