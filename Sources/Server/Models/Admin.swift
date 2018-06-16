@@ -14,7 +14,7 @@ struct Admin {
     
     static let collectionName = "admin"
     static var collection: MongoKitten.Collection {
-        return Application.shared.database[collectionName]
+        return MongoProvider.shared.database[collectionName]
     }
     
     var objectId: ObjectId
@@ -42,6 +42,15 @@ struct Admin {
     
     // MARK: - Settings
     
+    var databaseVersion: Int {
+        get {
+            return document["databaseVersion"] as? Int ?? 1
+        }
+        set {
+            document["databaseVersion"] = newValue
+        }
+    }
+    
     var timeZone: String {
         get {
             return document["timeZone"] as? String ?? TimeZone(secondsFromGMT: 0)?.identifier ?? Constants.defaultTimeZone
@@ -57,6 +66,15 @@ struct Admin {
         }
         set {
             document["registrationEnabled"] = newValue
+        }
+    }
+    
+    var regularUserCanDelete: Bool {
+        get {
+            return document["regularUserCanDelete"] as? Bool ?? false
+        }
+        set {
+            document["regularUserCanDelete"] = newValue
         }
     }
     
@@ -91,6 +109,15 @@ struct Admin {
         }
         set {
             document["secureCookie"] = newValue
+        }
+    }
+    
+    var basicAuth: Bool {
+        get {
+            return document["basicAuth"] as? Bool ?? false
+        }
+        set {
+            document["basicAuth"] = newValue
         }
     }
     
@@ -259,6 +286,26 @@ struct Admin {
         }
         set {
             document["faxStatusSendSlack"] = newValue
+        }
+    }
+    
+    // MARK: - Goolge
+    
+    var googleClientId: String? {
+        get {
+            return document["googleClientId"] as? String
+        }
+        set {
+            document["googleClientId"] = newValue
+        }
+    }
+    
+    var googleClientSecret: String? {
+        get {
+            return document["googleClientSecret"] as? String
+        }
+        set {
+            document["googleClientSecret"] = newValue
         }
     }
     

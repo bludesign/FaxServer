@@ -1,0 +1,79 @@
+#set("title") { Contacts }
+#set("main") {
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active">Contacts</li>
+    </ol>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa fa-align-justify"></i> Google Account
+                    </div>
+                    <form class="form-signin" action="./contact" method="post">
+                        <input name="referrer" type="hidden" value="/contact" />
+                        <div class="card-block">
+                            #if(accountConnected) {
+                                <div class="alert alert-success" role="alert">
+                                    <strong>Account Connected</strong>
+                                </div>
+                                You can access the XML phonebook at <a href="/contact/phonebook.xml">/contact/phonebook.xml</a>
+                            } else {
+                                <div class="alert alert-danger" role="alert">
+                                    <strong>Not Connected</strong>
+                                </div>
+                            }
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-sm btn-primary" name="action" value="sync"><i class="fa fa-dot-circle-o"></i> Sync Contacts</button>
+                            #if(accountConnected) {
+                                <button type="submit" class="btn btn-sm btn-primary btn-danger" name="action" value="disconnect" onclick="return confirm('Are you sure you want to disconnect this account?')"><i class="fa fa-dot-circle-o"></i> Disconnect</button>
+                            } else {
+                                <button type="submit" class="btn btn-sm btn-primary" name="action" value="connect"><i class="fa fa-dot-circle-o"></i> Connect</button>
+                            }
+                        </div>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fa fa-align-justify"></i> Contacts
+                    </div>
+                    <div class="card-block">
+                        <table class="table table-hover table-responsive">
+                            <thead>
+                                <tr>
+                                    <th>First Name</th>
+                                    <th>Last Name</th>
+                                    <th>Corporation</th>
+                                    <th>Group</th>
+                                    <th>Home</th>
+                                    <th>Work</th>
+                                    <th>Cell</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                #get(tableData)
+                            </tbody>
+                        </table>
+                        <ul class="pagination">
+                            <li class="page-item">
+                                <a class="page-link" href="#(prevPage)" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                    <span class="sr-only">Previous</span>
+                                </a>
+                            </li>
+                            #get(pageData)
+                            <li class="page-item">
+                                <a class="page-link" href="#(nextPage)" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                    <span class="sr-only">Next</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+#embed("base")

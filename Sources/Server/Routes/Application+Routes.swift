@@ -8,21 +8,26 @@
 import Foundation
 import Vapor
 
-extension Application {
+extension MainApplication {
     
     // MARK: - Methods
     
-    func routes(_ drop: Droplet) {
-        drop.get { _ in
-            return Response(redirect: "/admin")
+    static func routes() -> EngineRouter {
+        let router = EngineRouter.default()
+        router.get { request -> Response in
+            return request.redirect(to: "/fax")
         }
-        Account.routes(drop, drop.grouped("account"))
-        Admin.routes(drop, drop.grouped("admin"))
-        Client.routes(drop, drop.grouped("client"))
-        Device.routes(drop, drop.grouped("device"))
-        Fax.routes(drop, drop.grouped("fax"))
-        Message.routes(drop, drop.grouped("message"))
-        OAuth.routes(drop, drop.grouped("oauth"))
-        User.routes(drop, drop.grouped("user"))
+        
+        _ = AccountRouter(router: router.grouped("account"))
+        _ = AdminRouter(router: router.grouped("admin"))
+        _ = ContactRouter(router: router.grouped("contact"))
+        _ = FaxClientRouter(router: router.grouped("client"))
+        _ = FaxRouter(router: router.grouped("fax"))
+        _ = MessageRouter(router: router.grouped("message"))
+        _ = OAuthRouter(router: router.grouped("oauth"))
+        _ = PushDeviceRouter(router: router.grouped("pushDevice"))
+        _ = UserRouter(router: router.grouped("user"))
+        
+        return router
     }
 }

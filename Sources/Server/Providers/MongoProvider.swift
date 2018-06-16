@@ -9,7 +9,7 @@ import Foundation
 import Vapor
 import MongoKitten
 
-final class MongoProvider: Vapor.Provider {
+final class MongoProvider: Provider {
     
     // MARK: - Enums
     
@@ -19,83 +19,110 @@ final class MongoProvider: Vapor.Provider {
     
     // MARK: - Parameters
     
-    static let repositoryName = "Mongo"
+    static let shared = MongoProvider()
     
     var database: MongoKitten.Database
     var server: MongoKitten.Server
     
     // MARK: - Life Cycle
     
-    init(config: Config) throws {
-        Logger.debug("Starting Mongo Provider")
-        guard let mongo = config["mongo"]?.object else {
-            throw Error.config("No mongo.json config file.")
-        }
-        
-        guard let databaseName = mongo["database"]?.string else {
-            throw Error.config("No 'database' key in mongo.json config file.")
-        }
-        
-        let host = mongo["host"]?.string ?? "localhost"
-        let port = mongo["port"]?.int ?? 27017
-        if let user = mongo["user"]?.string?.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed), user.isEmpty == false {
-            if let password = mongo["password"]?.string?.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed), password.isEmpty == false {
-                server = try Server("mongodb://\(user):\(password)@\(host):\(port)")
+    init() {
+        do {
+            Logger.debug("Starting Mongo Provider")
+            let databaseName = Environment.get("MONGO_DATABASE") ?? "vapor"
+            let host = Environment.get("MONGO_HOST") ?? "localhost"
+            let port = Environment.get("MONGO_PORT")?.intValue ?? 27017
+            let credentials: MongoCredentials?
+            if let username = Environment.get("MONGO_USERNAME"), let password = Environment.get("MONGO_PASSWORD") {
+                credentials = MongoCredentials(username: username, password: password)
             } else {
-                server = try Server("mongodb://\(user)@\(host):\(port)")
+                credentials = nil
             }
-        } else {
-            server = try Server("mongodb://\(host):\(port)")
+            let clientSettings = ClientSettings(host: MongoHost(hostname:host, port: UInt16(port)), sslSettings: nil, credentials: credentials, maxConnectionsPerServer: 100, defaultTimeout: TimeInterval(1800), applicationName: nil)
+            server = try Server(clientSettings)
+//            server.logger = PrintLogger()
+//            server.whenExplaining = { explaination in
+//                Logger.verbose("Explained: \(explaination)")
+//            }
+            database = server[databaseName]
+        } catch let error {
+            print(error)
+            exit(1)
         }
-        self.database = server[databaseName]
     }
     
     // MARK: - Methods
     
-    func boot(_ config: Config) throws {
+    func register(_ services: inout Services) throws {
         
     }
     
-    func boot(_ droplet: Droplet) throws {
-        Logger.debug("Mongo Provider: Boot Connected: \(server.isConnected)")
+    func willBoot(_ container: Container) throws -> Future<Void> {
+        Logger.debug("Mongo Provider: Will Boot Connected: \(server.isConnected)")
+        return .done(on: container)
     }
     
-    func beforeRun(_ drop: Droplet) {
-        Application.shared.database = database
+    func didBoot(_ container: Container) throws -> EventLoopFuture<Void> {
+        try createIndexes()
+        Logger.debug("Mongo Provider: Did Boot Connected: \(server.isConnected)")
+        return .done(on: container)
+    }
+    
+    func createIndexes() throws {
         Logger.debug("Mongo Provider: Creating Indexes")
-        do {
-            let collections = try database.listCollections()
-            var collectionNames: Set<String> = []
-            for collection in collections {
-                collectionNames.insert(collection.name)
-            }
-            if collectionNames.contains(AuthenticityToken.collectionName) == false {
-                try database.createCollection(named: AuthenticityToken.collectionName)
-            }
-            if collectionNames.contains(AuthorizationCode.collectionName) == false {
-                try database.createCollection(named: AuthorizationCode.collectionName)
-            }
-            if collectionNames.contains(PasswordReset.collectionName) == false {
-                try database.createCollection(named: PasswordReset.collectionName)
-            }
-            if collectionNames.contains(AccessToken.collectionName) == false {
-                try database.createCollection(named: AccessToken.collectionName)
-            }
-            if AuthenticityToken.collection.containsIndex("ttl") == false {
-                try AuthenticityToken.collection.createIndex(named: "ttl", withParameters: .sort(field: "createdAt", order: .ascending), .expire(afterSeconds: 600), .buildInBackground)
-            }
-            if AuthorizationCode.collection.containsIndex("ttl") == false {
-                try AuthorizationCode.collection.createIndex(named: "ttl", withParameters: .sort(field: "createdAt", order: .ascending), .expire(afterSeconds: 600), .buildInBackground)
-            }
-            if PasswordReset.collection.containsIndex("ttl") == false {
-                try PasswordReset.collection.createIndex(named: "ttl", withParameters: .sort(field: "createdAt", order: .ascending), .expire(afterSeconds: 3600), .buildInBackground)
-            }
-            if AccessToken.collection.containsIndex("ttl") == false {
-                try AccessToken.collection.createIndex(named: "ttl", withParameters: .sort(field: "endOfLife", order: .ascending), .expire(afterSeconds: 0), .buildInBackground)
-            }
-        } catch let error {
-            Logger.error("Mongo Provider Error: \(error)")
+        let collections = try database.listCollections()
+        var collectionNames: Set<String> = []
+        for collection in collections {
+            collectionNames.insert(collection.name)
         }
+        if collectionNames.contains(AuthenticityToken.collectionName) == false {
+            try database.createCollection(named: AuthenticityToken.collectionName)
+        }
+        if collectionNames.contains(AuthorizationCode.collectionName) == false {
+            try database.createCollection(named: AuthorizationCode.collectionName)
+        }
+        if collectionNames.contains(PasswordReset.collectionName) == false {
+            try database.createCollection(named: PasswordReset.collectionName)
+        }
+        if collectionNames.contains(AccessToken.collectionName) == false {
+            try database.createCollection(named: AccessToken.collectionName)
+        }
+        if collectionNames.contains(Fax.collectionName) == false {
+            try database.createCollection(named: Fax.collectionName)
+        }
+        if collectionNames.contains(Message.collectionName) == false {
+            try database.createCollection(named: Message.collectionName)
+        }
+        if collectionNames.contains(Contact.collectionName) == false {
+            try database.createCollection(named: Contact.collectionName)
+        }
+        if AuthenticityToken.collection.containsIndex("ttl") == false {
+            try AuthenticityToken.collection.createIndex(named: "ttl", withParameters: .sort(field: "createdAt", order: .ascending), .expire(afterSeconds: 600), .buildInBackground)
+        }
+        if AuthorizationCode.collection.containsIndex("ttl") == false {
+            try AuthorizationCode.collection.createIndex(named: "ttl", withParameters: .sort(field: "createdAt", order: .ascending), .expire(afterSeconds: 600), .buildInBackground)
+        }
+        if PasswordReset.collection.containsIndex("ttl") == false {
+            try PasswordReset.collection.createIndex(named: "ttl", withParameters: .sort(field: "createdAt", order: .ascending), .expire(afterSeconds: 3600), .buildInBackground)
+        }
+        if AccessToken.collection.containsIndex("ttl") == false {
+            try AccessToken.collection.createIndex(named: "ttl", withParameters: .sort(field: "endOfLife", order: .ascending), .expire(afterSeconds: 0), .buildInBackground)
+        }
+        if Fax.collection.containsIndex("dateCreated") == false {
+            try Fax.collection.createIndex(named: "dateCreated", withParameters: .sort(field: "dateCreated", order: .descending), .buildInBackground)
+        }
+        if Message.collection.containsIndex("dateCreated") == false {
+            try Message.collection.createIndex(named: "dateCreated", withParameters: .sort(field: "dateCreated", order: .descending), .buildInBackground)
+        }
+        if Contact.collection.containsIndex("firstName") == false {
+            try Contact.collection.createIndex(named: "firstName", withParameters: .sort(field: "firstName", order: .ascending), .buildInBackground)
+        }
+        if Admin.settings.databaseVersion == 1 {
+            try Message.collection.update(to: ["$rename": ["numMedia": "mediaCount"]], multiple: true)
+            Admin.settings.databaseVersion = 2
+            try Admin.settings.save()
+        }
+        Logger.debug("Mongo Provider: Creating Indexes Complete")
     }
 }
 

@@ -16,12 +16,12 @@
     <meta name="author" content="BluDesign">
     <link rel="shortcut icon" href="/img/favicon.png">
 
-    <title>#import("title")</title>
+    <title>#get(title)</title>
 
     <link href="/vendors/css/font-awesome.min.css" rel="stylesheet">
     <link href="/vendors/css/simple-line-icons.min.css" rel="stylesheet">
     <link href="/vendors/css/style.min.css" rel="stylesheet">
-    #import("css")
+    #get(css)
 </head>
 
 <body class="app header-fixed sidebar-fixed aside-menu-fixed aside-menu-hidden">
@@ -38,10 +38,17 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/fax"><i class="icon-printer"></i> Faxes</a>
                         <a class="nav-link" href="/message"><i class="icon-bubble"></i> Messages</a>
-                        <a class="nav-link" href="/account"><i class="icon-phone"></i> Accounts</a>
-                        <a class="nav-link" href="/user"><i class="icon-people"></i> Users</a>
-                        <a class="nav-link" href="/client"><i class="icon-directions"></i> Clients</a>
-                        <a class="nav-link" href="/admin"><i class="icon-speedometer"></i> Settings</a>
+                        #if(contactsEnabled) {
+                            <a class="nav-link" href="/contact"><i class="icon-notebook"></i> Contacts</a>
+                        }
+                        #if(admin) {
+                            <a class="nav-link" href="/user"><i class="icon-people"></i> Users</a>
+                            <a class="nav-link" href="/account"><i class="icon-phone"></i> Accounts</a>
+                            <a class="nav-link" href="/client"><i class="icon-directions"></i> Clients</a>
+                            <a class="nav-link" href="/admin"><i class="icon-speedometer"></i> Settings</a>
+                        } else {
+                            <a class="nav-link" href="/user/me"><i class="icon-people"></i> My Account</a>
+                        }
                         <a class="nav-link" href="/user/logout"><i class="icon-logout"></i> Logout</a>
                     </li>
                 </ul>
@@ -49,12 +56,12 @@
         </div>
 
         <main class="main">
-            #import("main")
+            #get(main)
         </main>
     </div>
 
     <footer class="app-footer">
-        <span class="float-left">© 2017 <a href="https://bludesign.biz">BluDesign, LLC</a></span>
+        <span class="float-left">© 2018 <a href="https://bludesign.biz">BluDesign, LLC</a></span>
         <span class="float-right">Powered by <a href="http://coreui.io">CoreUI</a> & <a href="https://vapor.codes">Vapor</a></span>
     </footer>
 
@@ -63,7 +70,7 @@
     <script src="/vendors/js/bootstrap.min.js"></script>
     <script src="/vendors/js/pace.min.js"></script>
     <script src="/vendors/js/app.js"></script>
-    #import("scripts")
+    #get(scripts)
 </body>
 
 </html>

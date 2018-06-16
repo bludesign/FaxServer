@@ -1,6 +1,5 @@
-#extend("formBase")
-#export("title") { Login }
-#export("main") {
+#set("title") { Login }
+#set("main") {
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-8">
@@ -21,6 +20,7 @@
                             }
                             <form class="form-signin" action="./login" method="post">
                                 <input name="authenticityToken" type="hidden" value="#(authenticityToken)" />
+                                <input name="redirectUri" type="hidden" value="#(redirectUri)" />
                                 <input name="referrer" type="hidden" value="#(referrer)" />
                                 <div class="input-group mb-3">
                                     <span class="input-group-addon"><i class="icon-user"></i>
@@ -58,3 +58,4 @@
         </div>
     </div>
 }
+#embed("formBase")

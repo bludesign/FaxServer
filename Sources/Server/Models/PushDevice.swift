@@ -8,12 +8,12 @@
 import Foundation
 import MongoKitten
 
-struct Device {
+struct PushDevice {
     
     // MARK: - Parameters
     
-    static let collectionName = "device"
+    static let collectionName = "pushDevice"
     static var collection: MongoKitten.Collection {
-        return Application.shared.database[collectionName]
+        return MongoProvider.shared.database[collectionName]
     }
 }

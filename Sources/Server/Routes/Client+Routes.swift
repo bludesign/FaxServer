@@ -8,145 +8,164 @@
 import Foundation
 import Vapor
 import MongoKitten
-import BCrypt
+import Crypto
 
-extension Client {
+struct FaxClientRouter {
     
-    // MARK: - Methods
-    
-    static func routes(_ drop: Droplet, _ group: RouteBuilder) {
-        let protected = group.grouped([AuthenticationMiddleware.shared])
+    init(router: Router) {
+        let adminRouter = router.grouped(AdminAuthenticationMiddleware.self)
         
-        func getClients(request: Request, client: (clientId: String, clientSecret: String, resetSecret: Bool)? = nil) throws -> ResponseRepresentable {
-            let skip = request.data["skip"]?.int ?? 0
-            let limit = min(100, request.data["limit"]?.int ?? 100)
-            let documents = try Client.collection.find(sortedBy: ["name": .ascending], projecting: [
+        adminRouter.get(use: get)
+        adminRouter.post(use: post)
+        adminRouter.get(ObjectId.parameter, use: getClient)
+        adminRouter.post(ObjectId.parameter, use: postClient)
+    }
+    
+    // MARK: GET
+    func get(_ request: Request) throws -> Future<ServerResponse> {
+        return try FaxClientRouter.get(request, client: nil)
+    }
+    
+    // MARK: GET with FaxClient Info
+    static func get(_ request: Request, client: (clientId: String, clientSecret: String, resetSecret: Bool)?) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let pageInfo = request.pageInfo
+            
+            let clients = try FaxClient.collection.find(sortedBy: ["name": .ascending], projecting: [
                 "secret": false
-            ], skipping: skip, limitedTo: limit, withBatchSize: limit)
+                ], skipping: pageInfo.skip, limitedTo: pageInfo.limit, withBatchSize: pageInfo.limit)
             if request.jsonResponse {
-                return try documents.makeResponse()
+                return promise.submit(try clients.makeResponse(request))
             } else {
                 var tableData: String = ""
-                for document in documents {
-                    let id = try document.extractObjectId()
-                    let name = try document.extractString("name")
-                    let website = try document.extractString("website")
-                    let redirectUri = try document.extractString("redirectUri")
-                    let string = "<tr onclick=\"location.href='/client/\(id.hexString)'\"><td>\(name)</td><td>\(id.hexString)</td><td>\(website)</td><td>\(redirectUri)</td></tr>"
+                for client in clients {
+                    let clientId = try client.extractObjectId()
+                    let name = try client.extractString("name")
+                    let website = try client.extractString("website")
+                    let redirectUri = try client.extractString("redirectUri")
+                    let string = "<tr onclick=\"location.href='/client/\(clientId.hexString)'\"><td>\(name)</td><td>\(clientId.hexString)</td><td>\(website)</td><td>\(redirectUri)</td></tr>"
                     tableData.append(string)
                 }
+                var contextDictionary: [String: TemplateData] = [
+                    "tableData": .string(tableData),
+                    "admin": .bool(try request.authentication().permission.isAdmin),
+                    "contactsEnabled": .bool(Admin.settings.googleClientId != nil && Admin.settings.googleClientSecret != nil)
+                ]
                 if let client = client {
-                    return try drop.view.make("clients", [
-                        "clientId": client.clientId,
-                        "clientSecret": client.clientSecret,
-                        "showSecret": true,
-                        "resetSecret": client.resetSecret,
-                        "tableData": tableData
-                    ])
+                    contextDictionary["clientId"] = .string(client.clientId)
+                    contextDictionary["clientSecret"] = .string(client.clientSecret)
+                    contextDictionary["resetSecret"] = .bool(client.resetSecret)
+                    contextDictionary["showSecret"] = .bool(true)
                 }
-                return try drop.view.make("clients", ["tableData": tableData])
+                let context = TemplateData.dictionary(contextDictionary)
+                return promise.submit(try request.renderEncoded("clients", context))
             }
         }
-        
-        // MARK: Get Clients
-        protected.get { request in
-            return try getClients(request: request)
-        }
-        
-        // MARK: Create Client
-        protected.post { request in
-            let name = try request.data.extract("name") as String
-            let website = try request.data.extract("website") as String
-            let redirectUri = try request.data.extract("redirectUri") as String
+    }
+    
+    // MARK: POST
+    func post(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            struct FormData: Decodable {
+                let name: String
+                let website: String
+                let redirectUri: String
+            }
+            let formData = try request.content.syncDecode(FormData.self)
             
             let secret = try String.tokenEncoded()
-            let secretHash = try BCrypt.Hash.make(message: secret, with: Salt()).makeString()
-            let document: Document = [
-                "name": name,
-                "website": website,
-                "redirectUri": redirectUri,
+            let secretHash = try BCryptDigest().hash(secret)
+            let client: Document = [
+                "name": formData.name,
+                "website": formData.website,
+                "redirectUri": formData.redirectUri,
                 "secret": secretHash
             ]
-            guard let clientId = try Client.collection.insert(document) as? ObjectId else {
+            guard let clientId = try FaxClient.collection.insert(client) as? ObjectId else {
                 throw ServerAbort(.notFound, reason: "Error creating client")
             }
-            
             if request.jsonResponse {
-                return try JSON(node: [
+                let json: [String: Codable] = [
                     "clientId": clientId.hexString,
                     "clientSecret": secret
-                ])
+                ]
+                return promise.submit(try request.jsonEncoded(json: json))
             } else {
-                return try getClients(request: request, client: (clientId: clientId.hexString, clientSecret: secret, resetSecret: false))
+                return promise.submit(try FaxClientRouter.get(request, client: (clientId: clientId.hexString, clientSecret: secret, resetSecret: false)))
             }
         }
-        
-        // MARK: Get Client
-        protected.get(":objectId") { request in
-            let objectId = try request.parameters.extract("objectId") as ObjectId
-            guard let document = try Client.collection.findOne("_id" == objectId, projecting: [
+    }
+    
+    // MARK: GET :clientId
+    func getClient(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let clientId = try request.parameters.next(ObjectId.self)
+            guard let client = try FaxClient.collection.findOne("_id" == clientId, projecting: [
                 "secret": false
             ]) else {
                 throw ServerAbort(.notFound, reason: "Client not found")
             }
-            
             if request.jsonResponse {
-                return try document.makeResponse()
+                return promise.submit(try client.makeResponse(request))
             } else {
-                return try drop.view.make("client", [
-                    "name": try document.extract("name") as String,
-                    "website": try document.extract("website") as String,
-                    "redirectUri": try document.extract("redirectUri") as String,
-                    "clientId": objectId.hexString
+                let context = TemplateData.dictionary([
+                    "name": .string(try client.extract("name") as String),
+                    "website": .string(try client.extract("website") as String),
+                    "redirectUri": .string(try client.extract("redirectUri") as String),
+                    "clientId": .string(clientId.hexString),
+                    "admin": .bool(try request.authentication().permission.isAdmin),
+                    "contactsEnabled": .bool(Admin.settings.googleClientId != nil && Admin.settings.googleClientSecret != nil)
                 ])
+                return promise.submit(try request.renderEncoded("client", context))
             }
         }
-        
-        // MARK: Update Client
-        protected.post(":objectId") { request in
-            let objectId = try request.parameters.extract("objectId") as ObjectId
-            guard var document = try Client.collection.findOne("_id" == objectId) else {
+    }
+    
+    // MARK: POST :clientId
+    func postClient(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            struct FormData: Decodable {
+                let name: String?
+                let website: String?
+                let redirectUri: String?
+                let action: String?
+            }
+            let clientId = try request.parameters.next(ObjectId.self)
+            guard var client = try FaxClient.collection.findOne("_id" == clientId) else {
                 throw ServerAbort(.notFound, reason: "Client not found")
             }
-            
-            if request.data["action"]?.string == "delete" {
-                try Client.collection.remove("_id" == objectId)
-                if request.jsonResponse {
-                    return Response(jsonStatus: .ok)
-                }
-                return Response(redirect: "/client")
+            let formData = try request.content.syncDecode(FormData.self)
+            if formData.action == "delete" {
+                try FaxClient.collection.remove("_id" == clientId)
+                return promise.succeed(result: request.serverStatusRedirect(status: .ok, to: "/client"))
+            }
+            if let name = formData.name {
+                client["name"] = name
+            }
+            if let website = formData.website {
+                client["website"] = website
+            }
+            if let redirectUri = formData.redirectUri {
+                client["redirectUri"] = redirectUri
             }
             
-            if let name = try? request.data.extract("name") as String {
-                document["name"] = name
-            }
-            if let website = try? request.data.extract("website") as String {
-                document["website"] = website
-            }
-            if let redirectUri = try? request.data.extract("redirectUri") as String {
-                document["redirectUri"] = redirectUri
-            }
-            
-            guard request.data["action"]?.string != "resetSecret" else {
-                let objectId = try document.extract("_id") as ObjectId
+            guard formData.action != "resetSecret" else {
                 let secret = try String.tokenEncoded()
-                let secretHash = try BCrypt.Hash.make(message: secret, with: Salt()).makeString()
-                document["secret"] = secretHash
-                try Client.collection.update("_id" == objectId, to: document, upserting: true)
+                let secretHash = try BCryptDigest().hash(secret)
+                client["secret"] = secretHash
+                try FaxClient.collection.update("_id" == clientId, to: client, upserting: true)
                 if request.jsonResponse {
-                    return try JSON(node: [
-                        "clientId": objectId.hexString,
+                    let json: [String: Codable] = [
+                        "clientId": clientId.hexString,
                         "clientSecret": secret
-                    ])
+                    ]
+                    return promise.submit(try request.jsonEncoded(json: json))
                 } else {
-                    return try getClients(request: request, client: (clientId: objectId.hexString, clientSecret: secret, resetSecret: true))
+                    return promise.submit(try FaxClientRouter.get(request, client: (clientId: clientId.hexString, clientSecret: secret, resetSecret: false)))
                 }
             }
-            try Client.collection.update("_id" == objectId, to: document, upserting: true)
-            if request.jsonResponse {
-                return Response(jsonStatus: .ok)
-            }
-            return Response(redirect: "/client")
+            try FaxClient.collection.update("_id" == clientId, to: client, upserting: true)
+            return promise.succeed(result: request.serverStatusRedirect(status: .ok, to: "/client"))
         }
     }
 }

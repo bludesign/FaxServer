@@ -1,7 +1,5 @@
-#extend("base")
-
-#export("title") { Clients }
-#export("main") {
+#set("title") { Clients }
+#set("main") {
     <ol class="breadcrumb">
         <li class="breadcrumb-item active">Clients</li>
     </ol>
@@ -23,7 +21,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                #raw(tableData)
+                                #get(tableData)
                             </tbody>
                         </table>
                     </div>
@@ -39,7 +37,7 @@
                                     <div class="alert alert-success" role="alert">
                                         #if(resetSecret) {
                                             <h4 class="alert-heading">Client Secret Reset</h4>
-                                        } ##else() {
+                                        } else {
                                             <h4 class="alert-heading">New Client Created</h4>
                                         }
                                         <hr>
@@ -89,3 +87,4 @@
         </div>
     </div>
 }
+#embed("base")

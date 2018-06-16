@@ -14,7 +14,7 @@ struct Account {
     
     static let collectionName = "account"
     static var collection: MongoKitten.Collection {
-        return Application.shared.database[collectionName]
+        return MongoProvider.shared.database[collectionName]
     }
 }
 

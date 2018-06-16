@@ -5,7 +5,7 @@
         <img src="http://img.shields.io/badge/api-documentation-92A8D1.svg" alt="API Documentation">
     </a>
     <a href="https://vapor.codes/">
-        <img src="https://img.shields.io/badge/vapor-2.0-blue.svg" alt="Vapor">
+        <img src="https://img.shields.io/badge/vapor-3.0-blue.svg" alt="Vapor">
     </a>
     <a href="LICENSE">
         <img src="http://img.shields.io/badge/license-MIT-brightgreen.svg" alt="MIT License">
@@ -32,13 +32,13 @@ The easiest way to install is with [Docker](https://www.docker.com)
     cd FaxServer
     docker-compose up
 
-After the Vapor is finished building the (~5-10min) the server will be running at [http://127.0.0.1:8080](http://127.0.0.1:8080)
+After starting the server will be running at [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
 To run the server in the background run `docker-compose up -d`
 
 #### Manually
 
-If it is not already installed install [MongoDB](https://docs.mongodb.com/manual/installation/) and configure the connection settings in the [/Config/mongo.json](./Config/mongo.json) file.
+If it is not already installed install [MongoDB](https://docs.mongodb.com/manual/installation/) if you are using authentication or a non-standard port set it with the `MONGO_HOST`, `MONGO_PORT`, `MONGO_USERNAME`, `MONGO_PASSWORD` environment variables.
 
 Next install Vapor and Swift here for [macOS](https://docs.vapor.codes/2.0/getting-started/install-on-macos/) or  [Ubuntu](https://docs.vapor.codes/2.0/getting-started/install-on-ubuntu/).
 
@@ -47,9 +47,9 @@ Then build and run the project:
     git clone --depth=1 git@github.com:bludesign/FaxServer.git
     cd FaxServer
     vapor build --release
-    vapor run serve --env=production --release
+    .build/release/App
 
-The server will now be running at [http://127.0.0.1:8080](http://127.0.0.1:8080)
+The server will now be running at [http://127.0.0.1:8080](http://127.0.0.1:8080). Note running the server with `vapor run serve` will not work it must be run directly with the `App` in `.build/release` directory.
 
 ### 🚀 Deploy
 
@@ -92,6 +92,7 @@ First visit the Fax Server's address and register a new user account after you c
 
 > SMS messages can only be received from Nexmo so no accounts need to be added in Fax Server to receive messages.
 
+- In your Nexmo account settings under API settings make sure the HTTP method is set to POST.
 - Under Numbers in Nexmo set the SMS webhook URL to `https://(Server Address Here)/message/nexmo`
 - Nexmo must be enabled in Fax Server settings if it has been disabled.
 

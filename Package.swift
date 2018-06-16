@@ -1,24 +1,46 @@
+// swift-tools-version:4.0
 import PackageDescription
 
 let package = Package(
     name: "Server",
-    targets: [
-        Target(name: "Server"),
-        Target(name: "App", dependencies: ["Server"])
-    ],
     dependencies: [
-        .Package(url: "https://github.com/vapor/vapor.git", majorVersion: 2),
-        .Package(url: "https://github.com/vapor/leaf-provider.git", majorVersion: 1),
-        .Package(url: "https://github.com/vapor/validation.git", majorVersion: 1),
-        .Package(url: "https://github.com/OpenKitten/MongoKitten.git", majorVersion: 4),
-        .Package(url: "https://github.com/bludesign/vapor-apns", majorVersion: 2)
+        .package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "3.0.0")),
+        .package(url: "https://github.com/vapor/jwt.git", .upToNextMajor(from: "3.0.0-rc")),
+        .package(url: "https://github.com/vapor/leaf.git", .upToNextMajor(from: "3.0.0-rc")),
+        .package(url: "https://github.com/vapor/console.git", .upToNextMajor(from: "3.0.0")),
+        .package(url: "https://github.com/vapor/websocket", .upToNextMajor(from: "1.0.0")),
+        .package(url: "https://github.com/vapor/validation.git", .upToNextMajor(from: "2.0.0")),
+        .package(url: "https://github.com/vapor-community/clibressl.git", .upToNextMajor(from: "1.0.0")),
+        .package(url: "https://github.com/vapor-community/copenssl.git", .upToNextMajor(from: "1.0.0-rc")),
+        .package(url: "https://github.com/OpenKitten/MongoKitten.git", .upToNextMajor(from: "4.0.0")),
+        .package(url: "https://github.com/BrettRToomey/Jobs.git", .upToNextMajor(from: "1.0.0")),
+        .package(url: "https://github.com/reaumur/CCurl.git", .upToNextMajor(from: "1.0.0")),
+        .package(url: "https://github.com/tadija/AEXML.git", .upToNextMajor(from: "4.0.0"))
     ],
-    exclude: [
-        "Config",
-        "Deploy",
-        "Public",
-        "Resources",
-        "Tests",
-        "Database"
+    targets: [
+        .target(name: "Server",
+            dependencies: [
+                "Vapor",
+                "JWT",
+                "Leaf",
+                "Console",
+                "WebSocket",
+                "Validation",
+                "CLibreSSL",
+                "COpenSSL",
+                "MongoKitten",
+                "Jobs",
+                "CCurl",
+                "AEXML"
+            ],
+            exclude: [
+                "Config",
+                "Deploy",
+                "Public",
+                "Resources",
+                "Tests",
+                "Database"
+            ]),
+        .target(name: "App", dependencies: ["Server"])
     ]
 )

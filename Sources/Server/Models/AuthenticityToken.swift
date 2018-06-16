@@ -15,17 +15,26 @@ struct AuthenticityToken {
     
     static let collectionName = "authenticityToken"
     static var collection: MongoKitten.Collection {
-        return Application.shared.database[collectionName]
+        return MongoProvider.shared.database[collectionName]
     }
     
     // MARK: - Methods
     
-    static func cookieToken() throws -> String {
+    static func cookieToken(host: String?) throws -> String {
+        let hostName: String
+        if Admin.settings.secureCookie == false, let host = host {
+            hostName = host
+        } else if let host = Admin.settings.domainHostname {
+            hostName = host
+        } else {
+            hostName = "127.0.0.1"
+        }
         let token = try String.tokenEncoded()
         let authenticityToken: Document = [
             "responseType": "cookie",
             "createdAt": Date(),
-            "token": token
+            "token": token,
+            "hostName": hostName
         ]
         try AuthenticityToken.collection.insert(authenticityToken)
         return token
@@ -44,7 +53,6 @@ struct AuthenticityToken {
             "userId": userId
         ]
         try AuthenticityToken.collection.insert(authenticityToken)
-        
         return token
     }
 }
@@ -54,33 +62,50 @@ extension Request {
     // MARK: - Methods
     
     @discardableResult
-    func checkAuthenticityToken(oauth: Bool) throws -> (token: String, clientId: ObjectId, redirectUri: String, state: String?, responseType: String, scope: String)? {
-        let authenticityTokenString = try data.extract("authenticityToken") as String
-        if authenticityTokenString != "none" {
-            guard let authenticityToken = try AuthenticityToken.collection.findOne("token" == authenticityTokenString), let authenticityTokenId = authenticityToken.objectId else {
-                throw ServerAbort(.notFound, reason: "Authenticity token not found")
-            }
-            
-            let response: (token: String, clientId: ObjectId, redirectUri: String, state: String?, responseType: String, scope: String)?
-            let responseType = try authenticityToken.extract("responseType") as String
-            if oauth {
-                let clientId = try authenticityToken.extract("clientId") as ObjectId
-                let redirectUri = try authenticityToken.extract("redirectUri") as String
-                let scope = try authenticityToken.extract("scope") as String
-                let authenticityState = authenticityToken["state"] as? String
-                response = (token: authenticityTokenString, clientId: clientId, redirectUri: redirectUri, state: authenticityState, responseType: responseType, scope: scope)
-            } else {
-                guard responseType == "cookie" || responseType == "totp" else {
-                    throw ServerAbort(.notFound, reason: "Inncorect response type")
-                }
-                response = nil
-            }
-            if responseType != "totp" {
-                try AuthenticityToken.collection.remove("_id" == authenticityTokenId)
-            }
-            return response
-        } else {
-            throw ServerAbort(.notFound, reason: "Not yet implemented")
+    func checkOauthAuthenticityToken() throws -> (token: String, clientId: ObjectId, redirectUri: String, state: String?, responseType: String, scope: String)?  {
+        let authenticityTokenString = try get(at: "authenticityToken") as String
+        guard authenticityTokenString != "none" else {
+            throw ServerAbort(.badRequest, reason: "Authenticity token invalid")
         }
+        guard let authenticityToken = try AuthenticityToken.collection.findOne("token" == authenticityTokenString), let authenticityTokenId = authenticityToken.objectId else {
+            throw ServerAbort(.badRequest, reason: "Authenticity token not found")
+        }
+        
+        let response: (token: String, clientId: ObjectId, redirectUri: String, state: String?, responseType: String, scope: String)?
+        let responseType = try authenticityToken.extract("responseType") as String
+        guard responseType == "code" || responseType == "totp" else {
+            throw ServerAbort(.badRequest, reason: "Inncorect response type")
+        }
+        
+        let clientId = try authenticityToken.extract("clientId") as ObjectId
+        let redirectUri = try authenticityToken.extract("redirectUri") as String
+        let scope = try authenticityToken.extract("scope") as String
+        let authenticityState = authenticityToken["state"] as? String
+        response = (token: authenticityTokenString, clientId: clientId, redirectUri: redirectUri, state: authenticityState, responseType: responseType, scope: scope)
+        
+        if responseType != "totp" {
+            try AuthenticityToken.collection.remove("_id" == authenticityTokenId)
+        }
+        return response
+    }
+    
+    @discardableResult
+    func checkCookieAuthenticityToken() throws -> String {
+        let authenticityTokenString = try get(at: "authenticityToken") as String
+        guard authenticityTokenString != "none" else {
+            throw ServerAbort(.badRequest, reason: "Authenticity token invalid")
+        }
+        guard let authenticityToken = try AuthenticityToken.collection.findOne("token" == authenticityTokenString), let authenticityTokenId = authenticityToken.objectId else {
+            throw ServerAbort(.badRequest, reason: "Authenticity token not found")
+        }
+        let hostName = try authenticityToken.extract("hostName") as String
+        let responseType = try authenticityToken.extract("responseType") as String
+        guard responseType == "cookie" || responseType == "totp" else {
+            throw ServerAbort(.badRequest, reason: "Inncorect response type")
+        }
+        if responseType != "totp" {
+            try AuthenticityToken.collection.remove("_id" == authenticityTokenId)
+        }
+        return hostName
     }
 }

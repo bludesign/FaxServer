@@ -8,15 +8,14 @@ services:
       - ./Database/configdb:/data/configdb
       - ./Database/db:/data/db
   vapor:
-    image: bludesign/vapor:latest
+    image: bludesign/faxserver:latest
     restart: always
     ports:
       - "8080:8080"
     volumes:
-      - ./:/vapor
+      - ./Public:/FaxServer/Public
+      - ./Resources:/FaxServer/Resources
     environment:
         - MONGO_HOST=mongo
         - MONGO_PORT=27017
         - VAPOR_HOST=0.0.0.0
-    links:
-        - mongo

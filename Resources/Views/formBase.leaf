@@ -11,12 +11,12 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no, user-scalable=no">
     <meta name="description" content="Fax Server">
     <meta name="author" content="BluDesign">
     <link rel="shortcut icon" href="/img/favicon.png">
 
-    <title>#import("title")</title>
+    <title>#get(title)</title>
 
     <link href="/vendors/css/font-awesome.min.css" rel="stylesheet">
     <link href="/vendors/css/simple-line-icons.min.css" rel="stylesheet">
@@ -24,7 +24,7 @@
 </head>
 
 <body class="app flex-row align-items-center">
-    #import("main")
+    #get(main)
     <script src="/vendors/js/jquery.min.js"></script>
     <script src="/vendors/js/popper.min.js"></script>
     <script src="/vendors/js/bootstrap.min.js"></script>

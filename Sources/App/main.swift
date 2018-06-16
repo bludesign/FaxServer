@@ -7,4 +7,4 @@
 
 import Server
 
-Application.start()
+MainApplication.start()

@@ -14,7 +14,7 @@ struct PasswordReset {
     
     static let collectionName = "passwordReset"
     static var collection: MongoKitten.Collection {
-        return Application.shared.database[collectionName]
+        return MongoProvider.shared.database[collectionName]
     }
     
     // MARK: - Methods

@@ -8,68 +8,70 @@
 import Foundation
 import Vapor
 import MongoKitten
-import VaporAPNS
 import CCurl
+import Jobs
 
 final class PushProvider: Vapor.Provider {
-
+    
     // MARK: - Parameters
-
+    
     static let repositoryName = "Push"
     static var apns: VaporAPNS?
-
+    
     // MARK: - Life Cycle
-
-    init(config: Config) throws {
+    
+    private static func send(payload: Payload, deviceToken: String, retryCount: Int = 1) {
+        let pushMessage = ApplePushMessage(priority: .immediately, payload: payload, sandbox: false)
+        do {
+            guard let provider = PushProvider.apns else { return }
+            try provider.send(pushMessage, to: deviceToken)
+        } catch let error {
+            if let error = error as? APNSError, case APNSError.tooManyProviderTokenUpdates = error  {
+                Logger.info("APNS Rate Limited Retry In \(5 * retryCount) Minutes")
+                Jobs.oneoff(delay: Duration.seconds(300 * Double(retryCount))) {
+                    send(payload: payload, deviceToken: deviceToken, retryCount: retryCount + 1)
+                }
+            } else {
+                Logger.error("APNS Push Error: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - Methods
+    
+    func register(_ services: inout Services) throws {
         
     }
-
-    // MARK: - Methods
-
-    func boot(_ config: Config) throws {
-
+    
+    func willBoot(_ container: Container) throws -> Future<Void> {
+        return .done(on: container)
     }
-
-    func boot(_ droplet: Droplet) throws {
-
+    
+    func didBoot(_ container: Container) throws -> EventLoopFuture<Void> {
+        PushProvider.startApns(container: container)
+        return .done(on: container)
     }
-
-    func beforeRun(_ drop: Droplet) {
-        PushProvider.startApns()
-    }
-
-    static func sendPush(threadId: String, title: String, body: String, userId: ObjectId? = nil) {
-        let payload = Payload(title: title, body: body)
+    
+    static func sendPush(title: String, body: String, userId: ObjectId? = nil) {
+        let payload = Payload(title: title, body: body, sound: "default")
         do {
             let devices: CollectionSlice<Document>
             if let userId = userId {
-                devices = try Device.collection.find("userId" == userId, limitedTo: 10)
+                devices = try PushDevice.collection.find("userId" == userId, limitedTo: 10)
             } else {
-                devices = try Device.collection.find(limitedTo: 10)
+                devices = try PushDevice.collection.find(limitedTo: 10)
             }
-            var deviceTokens: [String] = []
+            
             for device in devices {
                 guard let deviceToken = device["deviceToken"] as? String else { continue }
-                deviceTokens.append(deviceToken)
+                send(payload: payload, deviceToken: deviceToken)
             }
-            payload.sound = "paper_tear_slow.wav"
-            let pushMessage = ApplePushMessage(priority: .immediately, payload: payload, sandbox: false)
-            PushProvider.apns?.send(pushMessage, to: deviceTokens, perDeviceResultHandler: { (result) in
-                switch result {
-                case let .error(apnsId, deviceToken, error):
-                    Logger.error("APNS Push ID: \(apnsId) Token: \(deviceToken) Error: \(error)")
-                case let .networkError(error):
-                    Logger.error("APNS Push Network Error: \(error)")
-                default:
-                    break
-                }
-            })
         } catch let error {
             Logger.error("APNS Push Error: \(error)")
         }
     }
-
-    static func startApns() {
+    
+    static func startApns(container: Container) {
         Logger.debug("Starting APNS Push Provider")
         guard let bundleId = Admin.settings.apnsBundleId, let teamId = Admin.settings.apnsTeamId, let keyId = Admin.settings.apnsKeyId, let keyPath = Admin.settings.apnsKeyPath else {
             Logger.info("APNS Push Notifications Not Configured")
@@ -79,13 +81,15 @@ final class PushProvider: Vapor.Provider {
             Logger.info("APNS Push Notifications Curl Version Unsupported")
             return
         }
-        let path: String
-        if keyPath.hasSuffix("/") {
-            path = keyPath
-        } else {
-            path = Application.shared.drop.config.resourcesDir.appending(keyPath)
-        }
         do {
+            let directory = try container.make(DirectoryConfig.self).workDir
+            let path: String
+            if keyPath.hasSuffix("/") {
+                path = keyPath
+            } else {
+                path = "\(directory)Resources/\(keyPath)"
+            }
+            
             let options = try Options(topic: bundleId, teamId: teamId, keyId: keyId, keyPath: path)
             PushProvider.apns = try VaporAPNS(options: options)
             Logger.debug("APNS Push Notifications Enabled")
@@ -93,6 +97,76 @@ final class PushProvider: Vapor.Provider {
             Logger.error("APNS Push Notifications Error: \(error)")
         }
         Formatter.longFormatter.timeZone = TimeZone(identifier: Admin.settings.timeZone)
+    }
+    
+    static func sendSlack(objectName: String, objectLink: String?, title: String, titleLink: String?, isError: Bool, date: Date = Date(), fields: [(title: String, value: String)]) {
+        guard let webHookUrl = Admin.settings.slackWebHookUrl, let url = Admin.settings.domain else { return }
+        do {
+            let requestClient = try MainApplication.shared.application.make(Client.self)
+            let headers = HTTPHeaders([
+                ("Accept", "application/json"),
+                ("Content-Type", "application/json")
+            ])
+            
+            struct Notification: Content {
+                let username: String = "fax"
+                let icon_url = "https://reaumur.tk/logo.png" // TODO: FIX LOGO
+                let attachments: [Attachment]
+                
+                struct Attachment: Content {
+                    var fallback: String?
+                    var color: String?
+                    var author_name: String?
+                    var title: String?
+                    var footer: String = "Fax Server"
+                    var ts: Double?
+                    var author_link: String?
+                    var title_link: String?
+                    var fields: [Field] = []
+                    
+                    struct Field: Content {
+                        let title: String
+                        let value: String
+                        let short: Bool = false
+                    }
+                }
+            }
+            
+            var attachment = Notification.Attachment()
+            attachment.fallback = "\(objectName) - \(title)"
+            attachment.color = (isError ? "#d50000" : "#45a455")
+            attachment.author_name = objectName
+            attachment.title = title
+            attachment.ts = date.timeIntervalSince1970
+            if let objectLink = objectLink {
+                attachment.author_link = "\(url)\(objectLink)"
+            }
+            if let titleLink = titleLink {
+                attachment.title_link = "\(url)\(titleLink)"
+            }
+            for field in fields {
+                attachment.fields.append(Notification.Attachment.Field(title: field.title, value: field.value))
+            }
+            let notification = Notification(attachments: [attachment])
+            
+            requestClient.post(webHookUrl, headers: headers, beforeSend: { request in
+                try request.content.encode(notification)
+            }).do { response in
+                guard response.http.status.isValid else {
+                    Logger.error("Error Sending Slack Status: \(response.http.status)")
+                    return
+                }
+            }.catch { error in
+                Logger.error("Error Sending Slack: \(error)")
+            }
+        } catch let error {
+            Logger.error("Error Sending Slack: \(error)")
+        }
+    }
+    
+    static func sendTest(userId: ObjectId) {
+        PushProvider.sendPush(title: "Test Notification", body: "Test Push Notification - \(Date().longString)", userId: userId)
+        PushProvider.sendSlack(objectName: "Test Notification", objectLink: nil, title: "Test Push Notification - \(Date().longString)", titleLink: "/admin", isError: false, fields: [])
     }
 }
 
@@ -116,13 +190,13 @@ private struct CurlVersion {
     }
     
     private static func checkVersionNumber(_ strVersionA: String, _ strVersionB: String) -> Int {
-        var arrVersionA = strVersionA.split(".").map({ Int($0) })
+        var arrVersionA = strVersionA.split(separator: ".").map({ Int($0) })
         guard arrVersionA.count == 3 else {
             Logger.info("APNS Push Notifications Wrong Curl Version: \(strVersionA)")
             return -1
         }
         
-        var arrVersionB = strVersionB.split(".").map({ Int($0) })
+        var arrVersionB = strVersionB.split(separator: ".").map({ Int($0) })
         guard arrVersionB.count == 3 else {
             Logger.info("APNS Push Notifications Wrong Curl Version: \(strVersionB)")
             return -1

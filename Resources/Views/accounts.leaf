@@ -1,31 +1,30 @@
-#extend("base")
-
-#export("title") { Accounts }
-#export("css") {
+#set("title") { Accounts }
+#set("css") {
     <link rel="stylesheet" href="/vendors/css/intlTelInput.css">
 }
-#export("scripts") {
+#set("scripts") {
     <script src="/vendors/js/intlTelInput.js"></script>
+
     <script>
-        $("#()phoneNumber").intlTelInput({
+    $("#phoneNumber").intlTelInput({
             autoPlaceholder: "off",
             initialCountry: "auto",
             allowDropdown: false,
             geoIpLookup: function(callback) {
-                $.get("https://ipinfo.io", function() {}, "jsonp").always(function(resp) {
+                $.get("https://ipinfo.io", function() {\}, "jsonp").always(function(resp) {
                     var countryCode = (resp && resp.country) ? resp.country : "";
                     callback(countryCode);
-                });
-            },
+                \});
+            \},
             utilsScript: "/vendors/js/utils.js"
-        });
+        \});
         function Submit(){
-            document.form.phoneNumber.value = $("#()phoneNumber").intlTelInput("getNumber", intlTelInputUtils.numberFormat.E164);
+            document.form.phoneNumber.value = $("#phoneNumber").intlTelInput("getNumber", intlTelInputUtils.numberFormat.E164);
             return true;
-        }
+        \}
     </script>
 }
-#export("main") {
+#set("main") {
     <ol class="breadcrumb">
         <li class="breadcrumb-item active">Accounts</li>
     </ol>
@@ -47,7 +46,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                #raw(tableData)
+                                #get(tableData)
                             </tbody>
                         </table>
                     </div>
@@ -115,3 +114,4 @@
         </div>
     </div>
 }
+#embed("base")

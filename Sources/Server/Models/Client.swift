@@ -8,12 +8,12 @@
 import Foundation
 import MongoKitten
 
-struct Client {
+struct FaxClient {
     
     // MARK: - Parameters
     
     static let collectionName = "client"
     static var collection: MongoKitten.Collection {
-        return Application.shared.database[collectionName]
+        return MongoProvider.shared.database[collectionName]
     }
 }

@@ -1,7 +1,5 @@
-#extend("base")
-
-#export("title") { Admin }
-#export("main") {
+#set("title") { Admin }
+#set("main") {
     <ol class="breadcrumb">
         <li class="breadcrumb-item active">Settings</li>
     </ol>
@@ -17,10 +15,10 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="registrationEnabled" id="optionsRadios1" value="true" #(userRegistrationEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="registrationEnabled" id="optionsRadios1" value="true" #if(registrationEnabled) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="registrationEnabled" id="optionsRadios2" value="false" #(userRegistrationDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="registrationEnabled" id="optionsRadios2" value="false" #if(!registrationEnabled) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
@@ -39,7 +37,7 @@
                         <label class="form-control-label" for="prependedInput">Timezone</label>
                             <div class="input-prepend input-group">
                             <select name="timeZone" class="form-control">
-                                #raw(timeZoneData)
+                                #get(timeZoneData)
                             </select>
                         </div>
                     </div>
@@ -48,27 +46,55 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="secureCookie" id="optionsRadios1" value="true" #(secureCookieEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="secureCookie" id="optionsRadios1" value="true" #if(secureCookie) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="secureCookie" id="optionsRadios2" value="false" #(secureCookieDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="secureCookie" id="optionsRadios2" value="false" #if(!secureCookie) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
-                        <p class="help-block">Warning: Enable if you only access the server over a secure connection (HTTPS) otherwise you will be unable to login. Enabling this will also restrict logins to the server address set above.</p>
+                        <p class="help-block">Warning: Enable only if you access the server over a secure connection (HTTPS) otherwise you will be unable to login. Enabling this will also restrict logins to the server address set above.</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-control-label" for="prependedInput">HTTP Basic Auth Enabled</label>
+                        <div class="input-prepend input-group">
+                            <div class="form-check">
+                                <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="basicAuth" id="optionsRadios1" value="true" #if(basicAuth) { checked }> Enabled
+                                </label>
+                                <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="basicAuth" id="optionsRadios2" value="false" #if(!basicAuth) { checked }> Disabled
+                                </label>
+                            </div>
+                        </div>
+                        <p class="help-block">Warning: Enable if only if you need to access the XML address book using HTTP Basic Auth. Enabling this will allow access without needing to put in a TOTP token.</p>
                     </div>
                     <div class="form-group">
                         <label class="form-control-label" for="prependedInput">Nexmo Webhook Enabled</label>
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="nexmoEnabled" id="optionsRadios1" value="true" #(nexmoEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="nexmoEnabled" id="optionsRadios1" value="true" #if(nexmoEnabled) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="nexmoEnabled" id="optionsRadios2" value="false" #(nexmoDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="nexmoEnabled" id="optionsRadios2" value="false" #if(!nexmoEnabled) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-control-label" for="prependedInput">Regular Users Can Delete</label>
+                        <div class="input-prepend input-group">
+                            <div class="form-check">
+                                <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="regularUserCanDelete" id="optionsRadios1" value="true" #if(regularUserCanDelete) { checked }> Enabled
+                                </label>
+                                <label class="form-check-label">
+                                    <input type="radio" class="form-check-input" name="regularUserCanDelete" id="optionsRadios2" value="false" #if(!regularUserCanDelete) { checked }> Disabled
+                                </label>
+                            </div>
+                        </div>
+                        <p class="help-block">Allow regular users instead of admin users only to delete faxes and messages.</p>
                     </div>
                 </div>
                 <div class="card-footer">
@@ -107,7 +133,7 @@
                         <div class="controls">
                             <div class="input-prepend input-group">
                                 <span class="input-group-addon"><i class="icon-key"></i></span>
-                                <input type="text" spellcheck="false" class="form-control" placeholder="Mailgun API Key" name="mailgunApiKey">
+                                <input type="text" spellcheck="false" class="form-control" placeholder="Mailgun API Key" name="mailgunApiKey" #if(mailgunApiKeySet) { value="●●●●●●●●●●●●●●●●●●●●"}>
                             </div>
                         </div>
                     </div>
@@ -116,7 +142,7 @@
                         <div class="controls">
                             <div class="input-prepend input-group">
                                 <span class="input-group-addon"><i class="icon-globe"></i></span>
-                                <input type="url" spellcheck="false" class="form-control" placeholder="Mailgun API URL" name="mailgunApiUrl">
+                                <input type="url" spellcheck="false" class="form-control" placeholder="Mailgun API URL" name="mailgunApiUrl" value="#(mailgunApiUrl)" required>
                             </div>
                         </div>
                     </div>
@@ -125,10 +151,10 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxReceivedSendEmail" id="optionsRadios1" value="true" #(faxReceivedSendEmailEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="faxReceivedSendEmail" id="optionsRadios1" value="true" #if(faxReceivedSendEmail) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxReceivedSendEmail" id="optionsRadios2" value="false" #(faxReceivedSendEmailDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="faxReceivedSendEmail" id="optionsRadios2" value="false" #if(!faxReceivedSendEmail) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
@@ -138,10 +164,10 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxStatusSendEmail" id="optionsRadios1" value="true" #(faxStatusSendEmailEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="faxStatusSendEmail" id="optionsRadios1" value="true" #if(faxStatusSendEmail) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxStatusSendEmail" id="optionsRadios2" value="false" #(faxStatusSendEmailDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="faxStatusSendEmail" id="optionsRadios2" value="false" #if(!faxStatusSendEmail) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
@@ -151,10 +177,10 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="messageSendEmail" id="optionsRadios1" value="true" #(messageSendEmailEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="messageSendEmail" id="optionsRadios1" value="true" #if(messageSendEmail) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="messageSendEmail" id="optionsRadios2" value="false" #(messageSendEmailDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="messageSendEmail" id="optionsRadios2" value="false" #if(!messageSendEmail) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
@@ -213,10 +239,10 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxReceivedSendApns" id="optionsRadios1" value="true" #(faxReceivedSendApnsEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="faxReceivedSendApns" id="optionsRadios1" value="true" #if(faxReceivedSendApns) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxReceivedSendApns" id="optionsRadios2" value="false" #(faxReceivedSendApnsDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="faxReceivedSendApns" id="optionsRadios2" value="false" #if(!faxReceivedSendApns) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
@@ -226,10 +252,10 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxStatusSendApns" id="optionsRadios1" value="true" #(faxStatusSendApnsEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="faxStatusSendApns" id="optionsRadios1" value="true" #if(faxStatusSendApns) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxStatusSendApns" id="optionsRadios2" value="false" #(faxStatusSendApnsDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="faxStatusSendApns" id="optionsRadios2" value="false" #if(!faxStatusSendApns) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
@@ -239,10 +265,10 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="messageSendApns" id="optionsRadios1" value="true" #(messageSendApnsEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="messageSendApns" id="optionsRadios1" value="true" #if(messageSendApns) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="messageSendApns" id="optionsRadios2" value="false" #(messageSendApnsDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="messageSendApns" id="optionsRadios2" value="false" #if(!messageSendApns) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
@@ -250,7 +276,6 @@
                 </div>
                 <div class="card-footer">
                     <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Save</button>
-                    <button type="submit" class="btn btn-sm btn-primary" name="action" value="testPush"><i class="fa fa-dot-circle-o"></i> Send Test Push</button>
                 </div>
             </form>
         </div>
@@ -274,10 +299,10 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxReceivedSendSlack" id="optionsRadios1" value="true" #(faxReceivedSendSlackEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="faxReceivedSendSlack" id="optionsRadios1" value="true" #if(faxReceivedSendSlack) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxReceivedSendSlack" id="optionsRadios2" value="false" #(faxReceivedSendSlackDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="faxReceivedSendSlack" id="optionsRadios2" value="false" #if(!faxReceivedSendSlack) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
@@ -287,10 +312,10 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxStatusSendSlack" id="optionsRadios1" value="true" #(faxStatusSendSlackEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="faxStatusSendSlack" id="optionsRadios1" value="true" #if(faxStatusSendSlack) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="faxStatusSendSlack" id="optionsRadios2" value="false" #(faxStatusSendSlackDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="faxStatusSendSlack" id="optionsRadios2" value="false" #if(!faxStatusSendSlack) { checked }> Disabled
                                 </label>
                             </div>
                         </div>
@@ -300,11 +325,42 @@
                         <div class="input-prepend input-group">
                             <div class="form-check">
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="messageSendSlack" id="optionsRadios1" value="true" #(messageSendSlackEnabled)> Enabled
+                                    <input type="radio" class="form-check-input" name="messageSendSlack" id="optionsRadios1" value="true" #if(messageSendSlack) { checked }> Enabled
                                 </label>
                                 <label class="form-check-label">
-                                    <input type="radio" class="form-check-input" name="messageSendSlack" id="optionsRadios2" value="false" #(messageSendSlackDisabled)> Disabled
+                                    <input type="radio" class="form-check-input" name="messageSendSlack" id="optionsRadios2" value="false" #if(!messageSendSlack) { checked }> Disabled
                                 </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Save</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <form action="./admin" method="post">
+                <div class="card-header">
+                    <i class="fa fa-align-justify"></i> Google API Settings
+                </div>
+                <div class="card-block">
+                    <div class="form-group">
+                        <label class="form-control-label" for="prependedInput">Google API Client ID</label>
+                        <div class="controls">
+                            <div class="input-prepend input-group">
+                                <span class="input-group-addon"><i class="icon-envelope-letter"></i></span>
+                                <input type="text" spellcheck="false" class="form-control" placeholder="Google API Client ID" name="googleClientId" value="#(googleClientId)" required>
+                            </div>
+                            <p class="help-block">Used for syncing Google contacts.</p>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-control-label" for="prependedInput">Google API Client Secret</label>
+                        <div class="controls">
+                            <div class="input-prepend input-group">
+                                <span class="input-group-addon"><i class="icon-envelope-letter"></i></span>
+                                <input type="text" spellcheck="false" class="form-control" placeholder="Google API Client Secret" name="googleClientSecret" value="#(googleClientSecret)" #if(googleClientSecretSet) { value="●●●●●●●●●●●●●●●●●●●●"} required>
                             </div>
                         </div>
                     </div>
@@ -316,3 +372,4 @@
         </div>
     </div>
 }
+#embed("base")

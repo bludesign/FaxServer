@@ -8,344 +8,341 @@
 import Foundation
 import Vapor
 import MongoKitten
-import SMTP
+import Leaf
 
 private enum AlertType {
     case faxReceived, faxStatus
 }
 
 private extension Document {
-    
+
     // MARK: - Methods
-    
+
     private func stringValue(_ key: String) -> String {
-        return self[key] as? String ?? "Unkown"
+        return self[key] as? String ?? "Unknown"
+    }
+
+    mutating func update(withFax fax: TwilioFax) {
+        self["sid"] = fax.sid
+        self["accountSid"] = fax.accountSid
+        self["mediaSid"] = fax.mediaSid ?? self["mediaSid"]
+        self["status"] = fax.status ?? self["status"]
+        self["direction"] = fax.direction ?? self["direction"]
+        self["from"] = fax.from ?? self["from"]
+        self["to"] = fax.to ?? self["to"]
+        self["dateUpdated"] = fax.dateUpdated ?? self["dateUpdated"]
+        self["price"] = fax.price?.doubleValue ?? self["price"]
+        self["dateCreated"] = fax.dateCreated ?? self["dateCreated"]
+        self["url"] = fax.url ?? self["url"]
+        self["duration"] = fax.duration ?? self["duration"]
+        self["pages"] = fax.pages ?? self["pages"]
+        self["quality"] = fax.quality ?? self["quality"]
+        self["priceUnit"] = fax.priceUnit ?? self["priceUnit"]
+        self["apiVersion"] = fax.apiVersion ?? self["apiVersion"]
+        self["mediaUrl"] = fax.mediaUrl ?? self["mediaUrl"]
     }
     
-    mutating func update(withTwilioJson json: JSON) {
-        guard let sid = json["sid"]?.string, let accountSid = json["account_sid"]?.string else {
-            return
-        }
-        self["mediaSid"] = json["media_sid"]?.string ?? self["mediaSid"]
-        self["status"] = json["status"]?.string ?? self["status"]
-        self["direction"] = json["direction"]?.string ?? self["direction"]
-        self["from"] = json["from"]?.string ?? self["from"] ?? self["from"]
-        self["to"] = json["to"]?.string ?? self["to"] ?? self["to"]
-        self["dateUpdated"] = json["date_updated"]?.iso8601Date ?? self["dateUpdated"]
-        self["price"] = json["price"]?.double ?? self["price"]
-        self["accountSid"] = accountSid
-        self["dateCreated"] = json["date_created"]?.iso8601Date ?? self["dateCreated"]
-        self["url"] = json["url"]?.string ?? self["url"]
-        self["sid"] = sid
-        self["duration"] = json["duration"]?.int ?? self["duration"]
-        self["pages"] = json["num_pages"]?.int ?? self["pages"]
-        self["quality"] = json["quality"]?.string ?? self["quality"]
-        self["priceUnit"] = json["price_unit"]?.string ?? self["priceUnit"]
-        self["apiVersion"] = json["api_version"]?.string ?? self["apiVersion"]
-        self["mediaUrl"] = json["media_url"]?.string ?? self["mediaUrl"]
+    mutating func update(withIncommingFax fax: TwilioIncommingFax) {
+        self["sid"] = fax.sid
+        self["accountSid"] = fax.accountSid
+        self["status"] = fax.status ?? self["status"]
+        self["from"] = fax.from ?? self["from"]
+        self["to"] = fax.to ?? self["to"]
+        self["pages"] = fax.pages ?? self["pages"]
+        self["apiVersion"] = fax.apiVersion ?? self["apiVersion"]
+        self["remoteStationId"] = fax.remoteStationId ?? self["remoteStationId"]
+        self["mediaUrl"] = fax.mediaUrl ?? self["mediaUrl"]
+        self["errorCode"] = fax.errorCode ?? self["errorCode"]
+        self["errorMessage"] = fax.errorMessage ?? self["errorMessage"]
     }
-    
-    func sendAlert(_ drop: Droplet, objectId: ObjectId, to: String?, subject: String, alertType: AlertType) {
+
+    func sendAlert(_ request: Request, objectId: ObjectId, to: String?, subject: String, alertType: AlertType) {
         if (alertType == .faxStatus ? Admin.settings.faxStatusSendEmail : Admin.settings.faxReceivedSendEmail), let to = to {
-            sendEmail(drop, objectId: objectId, to: to, subject: subject)
+            sendEmail(request, objectId: objectId, to: to, subject: subject)
         }
         if (alertType == .faxStatus ? Admin.settings.faxStatusSendApns : Admin.settings.faxReceivedSendApns) {
             sendPush(objectId: objectId, subject: subject)
         }
         if (alertType == .faxStatus ? Admin.settings.faxStatusSendSlack : Admin.settings.faxReceivedSendSlack) {
-            sendSlack(drop, objectId: objectId, subject: subject)
+            sendSlack(request, objectId: objectId, subject: subject)
         }
     }
-    
-    private func sendEmail(_ drop: Droplet, objectId: ObjectId, to: String, subject: String) {
+
+    private func sendEmail(_ request: Request, objectId: ObjectId, to: String, subject: String) {
         guard let url = Admin.settings.domain else {
             Logger.error("Error Sending Email: No host URL set in settings")
             return
         }
-        let data: NodeRepresentable = [
-            "title": subject,
-            "status": stringValue("status").capitalized,
-            "from": stringValue("from"),
-            "to": stringValue("to"),
-            "date": (self["dateCreated"] as? Date)?.longString ?? "Unkown",
-            "direction": stringValue("direction").capitalized,
-            "quality": stringValue("quality").capitalized,
-            "pages": self["pages"]?.numberString ?? "",
-            "duration": self["duration"]?.intValue?.timeString ?? "",
-            "mediaUrl": "\(url)/fax/file/\(objectId.hexString)"
-        ]
+        let context = TemplateData.dictionary([
+            "title": .string(subject),
+            "status": .string(stringValue("status").capitalized),
+            "from": .string(stringValue("from")),
+            "to": .string(stringValue("to")),
+            "date": .string((self["dateCreated"] as? Date)?.longString ?? "Unknown"),
+            "direction": .string(stringValue("direction").capitalized),
+            "quality": .string(stringValue("quality").capitalized),
+            "pages": .string(self["pages"]?.numberString ?? ""),
+            "duration": .string(self["duration"]?.intValue?.timeString ?? ""),
+            "mediaUrl": .string("\(url)/fax/file/\(objectId.hexString)"),
+        ])
         do {
-            let content = try drop.view.make("faxStatusEmail", data).data.makeString()
-            try Email(from: Admin.settings.mailgunFromEmail, to: to, subject: subject, body: EmailBody(type: .html, content: content)).send()
+            _ = try request.make(LeafRenderer.self).render("faxStatusEmail", context).do { (view) in
+                do {
+                    try Email.send(subject: subject, to: to, htmlBody: view.data, redirect: nil, request: request, promise: nil)
+                } catch let error {
+                    Logger.error("Error Sending Email: \(error)")
+                }
+            }
         } catch let error {
             Logger.error("Error Sending Email: \(error)")
         }
     }
-    
+
     private func sendPush(objectId: ObjectId, subject: String) {
         if let from = self["from"] as? String, let to = self["to"] as? String, let status = (self["status"] as? String)?.capitalized {
-            PushProvider.sendPush(threadId: objectId.hexString, title: subject, body: "Status: \(status) From: \(from) To: \(to)")
+            PushProvider.sendPush(title: subject, body: "Status: \(status) From: \(from) To: \(to)")
         }
     }
-    
-    private func sendSlack(_ drop: Droplet, objectId: ObjectId, subject: String) {
-        guard let webHookUrl = Admin.settings.slackWebHookUrl, let from = self["from"] as? String, let to = self["to"] as? String, let status = (self["status"] as? String)?.capitalized else { return }
+
+    private func sendSlack(_ request: Request, objectId: ObjectId, subject: String) {
         guard let url = Admin.settings.domain else {
             Logger.error("Error Sending Email: No host URL set in settings")
             return
         }
-        let mediaUrl = "\(url)/fax/file/\(objectId.hexString)"
-        
-        do {
-            let json: JSON = [
-                "attachments": [
-                    [
-                        "fallback": JSON.string("<\(mediaUrl)|\(subject)> Status: \(status) From: \(from) To: \(to)"),
-                        "title": JSON.string("\(subject)"),
-                        "title_link": JSON.string(mediaUrl),
-                        "fields": [
-                            [
-                                "title": "Status",
-                                "value": JSON.string(subject),
-                                "short": false
-                            ], [
-                                "title": "From",
-                                "value": JSON.string(from),
-                                "short": false
-                            ], [
-                                "title": "To",
-                                "value": JSON.string(to),
-                                "short": false
-                            ]
-                        ],
-                        "ts": JSON.number(.double((self["dateCreated"] as? Date ?? Date()).timeIntervalSince1970))
-                    ]
-                ]
-            ]
-            _ = try drop.client.post(webHookUrl, [
-                "Content-Type": "application/json"
-            ], json)
-        } catch let error {
-            Logger.error("Error Sending Slack: \(error)")
-        }
+        guard let from = self["from"] as? String, let to = self["to"] as? String, let status = (self["status"] as? String)?.capitalized else { return }
+        PushProvider.sendSlack(objectName: "Fax", objectLink: "\(url)/fax/\(objectId.hexString)", title: subject, titleLink: "\(url)/fax/file/\(objectId.hexString)", isError: false, date: self["dateCreated"] as? Date ?? Date(), fields: [
+            (title: "Status", value: status),
+            (title: "From", value: from),
+            (title: "To", value: to)
+        ])
     }
 }
 
-extension Fax {
+struct FaxRouter {
     
-    // MARK: - Methods
+    init(router: Router) {
+        let protectedRouter = router.grouped(AuthenticationMiddleware.self)
+        
+        router.post("twiml", use: postTwiml)
+        protectedRouter.post(use: post)
+        protectedRouter.get(use: get)
+        protectedRouter.get(ObjectId.parameter, use: getFax)
+        protectedRouter.delete(ObjectId.parameter, use: deleteFax)
+        protectedRouter.post(ObjectId.parameter, use: deleteFax)
+        router.get("file", ObjectId.parameter, use: getFileFileId)
+        router.get("file", ObjectId.parameter, String.parameter, use: getFileFileIdToken)
+        router.post("status", ObjectId.parameter, use: postStatusFaxId)
+        router.post("status", ObjectId.parameter, String.parameter, use: postStatusFaxIdToken)
+        router.post("receive", use: postReceive)
+    }
     
-    static func routes(_ drop: Droplet, _ group: RouteBuilder) {
-        let protected = group.grouped([AuthenticationMiddleware.shared])
-        
-        // MARK: Twiml
-        group.post("twiml") { _ in
-            return try twiml()
+    // MARK: POST twiml
+    func postTwiml(_ request: Request) throws -> ServerResponse {
+        guard let url = Admin.settings.domain else {
+            throw ServerAbort(.notFound, reason: "No host URL set in settings")
         }
-        group.get("twiml") { _ in
-            return try twiml()
-        }
+        let responseString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Receive action=\"\(url)/fax/receive\"/></Response>"
         
-        func twiml() throws -> Response {
-            guard let url = Admin.settings.domain else {
-                throw ServerAbort(.notFound, reason: "No host URL set in settings")
-            }
-            let responseString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Receive action=\"\(url)/fax/receive\"/></Response>"
-            return Response(
-                status: .ok,
-                headers: ["Content-Type": "text/xml"],
-                body: responseString.makeBytes()
-            )
+        let response = Response(using: request.sharedContainer)
+        response.http.headers.replaceOrAdd(name: .contentType, value: "text/xml")
+        response.http.body = HTTPBody(data: responseString.convertToData())
+        response.http.status = .ok
+        return ServerResponse.response(response)
+    }
+    
+    // MARK: POST
+    func post(_ request: Request) throws -> Future<ServerResponse> {
+        let authentication = try request.authentication()
+        guard authentication.permission != .readOnly else {
+            return try request.statusRedirectEncoded(status: .forbidden, to: "/fax")
         }
-        
-        // MARK: Send Fax
-        protected.post { request in
-            let jsonResponse = request.jsonResponse
-            let userId = try request.getUserId()
-            let toString = try request.data.extract("to") as String
-            let senderEmail = try request.data.extractValidatedEmail("senderEmail") as String
-            let accountId = try request.data.extract("accountId") as ObjectId
-            guard let account = try Account.collection.findOne("_id" == accountId) else {
-                throw ServerAbort(.notFound, reason: "Account not found")
+        let promise = request.eventLoop.newPromise(ServerResponse.self)
+        struct FormData: Content, Validatable {
+            let to: String
+            let from: String?
+            let senderEmail: String
+            let accountId: ObjectId
+            let file: File
+            
+            static func validations() throws -> Validations<FormData> {
+                var validations = Validations(FormData.self)
+                validations.add(\FormData.senderEmail, at: ["senderEmail"], Validator.email)
+                return validations
             }
-            let accountSid = try account.extract("accountSid") as String
-            let authToken = try account.extract("authToken") as String
-            let phoneNumber = try account.extract("phoneNumber") as String
-            guard let bytes = request.data["file"]?.bytes, bytes.count > 0 else {
-                throw ServerAbort(.notFound, reason: "file is required")
-            }
-            guard bytes[0] == 0x25 else {
-                throw ServerAbort(.notFound, reason: "Invalid PDF format")
-            }
-            
-            let token = try String.token()
-            let fromString = request.data["from"]?.string ?? phoneNumber
-            
-            var document: Document = [
-                "from": fromString,
-                "to": toString,
-                "userId": userId,
-                "token": token,
-                "accountSid": accountSid,
-                "senderEmail": senderEmail,
-                "status": "started",
-                "dateCreated": Date(),
-                "accountId": accountId,
-                "direction": "outbound"
-            ]
-            guard let objectId = try Fax.collection.insert(document) as? ObjectId else {
-                throw ServerAbort(.notFound, reason: "Error creating fax")
-            }
-            
-            let fileDocument: Document = [
-                "faxObjectId": objectId,
-                "token": token,
-                "dateCreated": Date(),
-                "data": Data(bytes: bytes)
-            ]
-            try FaxFile.collection.insert(fileDocument)
-            
-            let request = Request(method: .post, uri: "\(Constants.Twilio.faxUrl)/Faxes", headers: [
-                "Authorization": "Basic \(try String.twilioAuthString(accountSid, authToken: authToken))",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json"
-            ])
-            guard let url = Admin.settings.domain else {
-                throw ServerAbort(.notFound, reason: "No host URL set in settings")
-            }
-            request.body = .data(try Node(node: [
-                "From": fromString,
-                "To": toString,
-                "MediaUrl": "\(url)/fax/file/\(objectId.hexString)/\(token)",
-                "StatusCallback": "\(url)/fax/status/\(objectId.hexString)/\(token)"
-            ]).formURLEncodedPlus())
-            
-            let response: Response = try drop.client.respond(to: request)
-            
-            guard response.status.isValid else {
-                document["status"] = "failed"
-                try Fax.collection.update("_id" == objectId, to: document)
-                throw ServerAbort(response.status, reason: "Twilio reponse error")
-            }
-            guard let responseBytes = response.body.bytes else {
-                throw ServerAbort(.notFound, reason: "Error parsing response body")
-            }
-            let json = try JSON(bytes: responseBytes)
-            document.update(withTwilioJson: json)
-            
-            try Fax.collection.update("_id" == objectId, to: document)
-            
-            document.sendAlert(drop, objectId: objectId, to: senderEmail, subject: "Fax Sent", alertType: .faxStatus)
-            
-            if jsonResponse {
-                guard let document = try Fax.collection.findOne("_id" == objectId) else {
-                    throw ServerAbort(.notFound, reason: "Fax missing")
+        }
+        _ = try request.content.decode(FormData.self).do { (formData) in
+            DispatchQueue.global().async {
+                do {
+                    try formData.validate()
+                    guard let account = try Account.collection.findOne("_id" == formData.accountId) else {
+                        throw ServerAbort(.notFound, reason: "Account not found")
+                    }
+                    let accountSid = try account.extract("accountSid") as String
+                    let authToken = try account.extract("authToken") as String
+                    let phoneNumber = try account.extract("phoneNumber") as String
+                    let token = try String.token()
+                    let fromString = formData.from ?? phoneNumber
+                    
+                    var document: Document = [
+                        "from": fromString,
+                        "to": formData.to,
+                        "userId": authentication.userId,
+                        "token": token,
+                        "accountSid": accountSid,
+                        "senderEmail": formData.senderEmail,
+                        "status": "started",
+                        "dateCreated": Date(),
+                        "accountId": formData.accountId,
+                        "direction": "outbound"
+                    ]
+                    guard let objectId = try Fax.collection.insert(document) as? ObjectId else {
+                        throw ServerAbort(.internalServerError, reason: "Error creating fax")
+                    }
+                    guard formData.file.contentType == .pdf else {
+                        throw ServerAbort(.badRequest, reason: "Invalid file format must be an PDF")
+                    }
+                    
+                    let fileDocument: Document = [
+                        "faxObjectId": objectId,
+                        "token": token,
+                        "dateCreated": Date(),
+                        "fileName": formData.file.filename,
+                        "data": formData.file.data
+                    ]
+                    try FaxFile.collection.insert(fileDocument)
+                    
+                    
+                    let requestClient = try request.make(Client.self)
+                    let headers = HTTPHeaders([
+                        ("Authorization", "Basic \(try String.twilioAuthString(accountSid, authToken: authToken))"),
+                        ("Content-Type", "application/x-www-form-urlencoded"),
+                        ("Accept", "application/json")
+                    ])
+                    guard let url = Admin.settings.domain else {
+                        throw ServerAbort(.notFound, reason: "No host URL set in settings")
+                    }
+                    let content: [String: String] = [
+                        "From": fromString,
+                        "To": formData.to,
+                        "MediaUrl": "\(url)/fax/file/\(objectId.hexString)/\(token)",
+                        "StatusCallback": "\(url)/fax/status/\(objectId.hexString)/\(token)"
+                    ]
+                    requestClient.post("\(Constants.Twilio.faxUrl)/Faxes", headers: headers, beforeSend: { request in
+                        try request.content.encode(content, as: .urlEncodedForm)
+                    }).do { response in
+                        do {
+                            guard response.http.status.isValid else {
+                                document["status"] = "failed"
+                                try Fax.collection.update("_id" == objectId, to: document)
+                                throw ServerAbort(response.http.status, reason: "Twilio reponse error")
+                            }
+                            
+                            let fax = try response.content.syncDecode(TwilioFax.self)
+                            document.update(withFax: fax)
+                            
+                            try Fax.collection.update("_id" == objectId, to: document)
+                            
+                            document.sendAlert(request, objectId: objectId, to: formData.senderEmail, subject: "Fax Sent", alertType: .faxStatus)
+                            if request.jsonResponse {
+                                return promise.submit(try document.makeResponse(request))
+                            }
+                            return promise.succeed(result: request.serverStatusRedirect(status: .ok, to: "/fax/\(objectId.hexString)"))
+                        } catch let error {
+                            return promise.fail(error: error)
+                        }
+                    }.catch { error in
+                        return promise.fail(error: error)
+                    }
+                } catch let error {
+                    return promise.fail(error: error)
                 }
-                return try document.makeResponse()
+            }
+        }
+        return promise.futureResult
+    }
+    
+    // MARK: GET :faxId
+    func getFax(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let objectId = try request.parameters.next(ObjectId.self)
+            let authentication = try request.authentication()
+            
+            guard let document = try Fax.collection.findOne("_id" == objectId, projecting: [
+                "sid": false,
+                "accountSid": false,
+                "mediaSid": false
+            ]) else {
+                throw ServerAbort(.notFound, reason: "Fax not found")
+            }
+            
+            if request.jsonResponse {
+                return promise.submit(try document.makeResponse(request))
             } else {
-                return Response(redirect: "/fax")
-            }
-        }
-        
-        // MARK: Update Fax Status
-        group.post("status", ":objectId") { request in
-            let objectId = try request.parameters.extract("objectId") as ObjectId
-            let token = request.data["token"]?.string
-            return try updateStatus(objectId: objectId, token: token, request: request)
-        }
-        
-        // MARK: Update Fax Status
-        group.post("status", ":objectId", ":token") { request in
-            let objectId = try request.parameters.extract("objectId") as ObjectId
-            let token = try request.parameters.extract("token") as String
-            return try updateStatus(objectId: objectId, token: token, request: request)
-        }
-        
-        func updateStatus(objectId: ObjectId, token: String? = nil, request: Request) throws -> Response {
-            let sid = try request.data.extract("FaxSid") as String
-            let accountSid = try request.data.extract("AccountSid") as String
-            guard let account = try Account.collection.findOne("accountSid" == accountSid) else {
-                throw ServerAbort(.notFound, reason: "Account not found")
-            }
-            let authToken = try account.extract("authToken") as String
-            
-            guard var document = try Fax.collection.findOne("_id" == objectId) else {
-                throw ServerAbort(.notFound, reason: "Fax not found")
-            }
-            
-            if request.userId == nil {
-                let documentToken = try document.extract("token") as String
-                guard token == documentToken else {
-                    throw ServerAbort(.notFound, reason: "Invalid fax token")
+                let from = document["from"] as? String ?? "Unknown"
+                let to = document["to"] as? String ?? "Unknown"
+                let dateCreated = (document["dateCreated"] as? Date)?.longString ?? "Unknown"
+                let dateUpdated = (document["dateUpdated"] as? Date)?.longString ?? "Unknown"
+                let status = (document["status"] as? String)?.statusString ?? "Unknown"
+                let badge: String
+                if status == "Received" || status == "Delivered" {
+                    badge = "success"
+                } else if status == "Failed" {
+                    badge = "danger"
+                } else {
+                    badge = "warning"
                 }
-            }
-            
-            document["sid"] = sid
-            document["accountSid"] = accountSid
-            document["from"] = request.data["From"]?.string
-            document["to"] = request.data["To"]?.string
-            document["remoteStationId"] = request.data["RemoteStationId"]?.string
-            document["status"] = request.data["FaxStatus"]?.string
-            document["apiVersion"] = request.data["ApiVersion"]?.string
-            document["pages"] = request.data["NumPages"]?.int
-            document["mediaUrl"] = request.data["OriginalMediaUrl"]?.string
-            document["errorCode"] = request.data["ErrorCode"]?.string
-            document["errorMessage"] = request.data["ErrorMessage"]?.string
-            
-            guard let responseBytes = try drop.client.get("\(Constants.Twilio.faxUrl)/Faxes/\(sid)", [
-                "Authorization": "Basic \(try String.twilioAuthString(accountSid, authToken: authToken))",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json"
-            ]).body.bytes else {
-                throw ServerAbort(.notFound, reason: "Error parsing response body")
-            }
-            let json = try JSON(bytes: responseBytes)
-            document.update(withTwilioJson: json)
-            
-            try Fax.collection.update("_id" == document.objectId, to: document)
-            
-            if let objectId = document.objectId {
-                document.sendAlert(drop, objectId: objectId, to: document["senderEmail"] as? String, subject: "Fax Status Update", alertType: .faxStatus)
-            }
-            
-            return Response(jsonStatus: .ok)
-        }
-        
-        // MARK: Get Fax File
-        group.get("file", ":objectId") { request in
-            let objectId = try request.parameters.extract("objectId") as ObjectId
-            let token = request.data["token"]?.string
-            return try getFile(objectId: objectId, token: token, request: request)
-        }
-        
-        // MARK: Get Fax File
-        group.get("file", ":objectId", ":token") { request in
-            let objectId = try request.parameters.extract("objectId") as ObjectId
-            let token = try request.parameters.extract("token") as String
-            return try getFile(objectId: objectId, token: token, request: request)
-        }
-        
-        func getFile(objectId: ObjectId, token: String? = nil, request: Request) throws -> Response {
-            guard let document = try FaxFile.collection.findOne("faxObjectId" == objectId) else {
-                throw ServerAbort(.notFound, reason: "Fax not found")
-            }
-            
-            if request.userId == nil {
-                guard let documentToken = document["token"] as? String, token == documentToken else {
-                    return Response(redirect: "/user/login?referrer=/fax/file/\(objectId.hexString)")
+                let direction = (document["direction"] as? String)?.capitalized ?? "Unknown"
+                let quality = (document["quality"] as? String)?.quailityString ?? "Unknown"
+                let remoteStationId = (document["remoteStationId"] as? String) ?? "None"
+                let pages = document["pages"]?.numberString ?? "Unknown"
+                let duration = document["duration"]?.numberString ?? "Unknown"
+                let price: String
+                if let priceValue = document["price"]?.currencyString {
+                    if let priceUnit = (document["priceUnit"] as? String) {
+                        price = "\(priceValue) (\(priceUnit))"
+                    } else {
+                        price = priceValue
+                    }
+                } else {
+                    price = "None"
                 }
+                
+                var contextDictionary: [String: TemplateData] = [
+                    "faxId": .string(objectId.hexString),
+                    "from": .string(from),
+                    "to": .string(to),
+                    "dateCreated": .string(dateCreated),
+                    "dateUpdated": .string(dateUpdated),
+                    "status": .string("<span class=\"badge badge-\(badge)\">\(status)</span>"),
+                    "direction": .string(direction),
+                    "quality": .string(quality),
+                    "pages": .string(pages),
+                    "duration": .string(duration),
+                    "price": .string(price),
+                    "remoteStationId": .string(remoteStationId),
+                    "admin": .bool(authentication.permission.isAdmin),
+                    "canDelete": .bool((Admin.settings.regularUserCanDelete ? authentication.permission != .readOnly : authentication.permission.isAdmin)),
+                    "contactsEnabled": .bool(Admin.settings.googleClientId != nil && Admin.settings.googleClientSecret != nil)
+                ]
+                if let userId = document["userId"] as? ObjectId, let user = try User.collection.findOne("_id" == userId, projecting: [
+                    "email": true
+                ]), let userEmail = user["email"] as? String {
+                    contextDictionary["sendingUser"] = .string(userEmail)
+                }
+                if let errorCode = document["errorCode"] as? String, let errorMessage = document["errorMessage"] as? String {
+                    contextDictionary["error"] = .string("\(errorCode) - \(errorMessage)")
+                }
+                let context = TemplateData.dictionary(contextDictionary)
+                return promise.submit(try request.renderEncoded("fax", context))
             }
-            
-            guard let bytes = Data(document["data"])?.makeBytes() else {
-                throw ServerAbort(.notFound, reason: "Fax file empty")
-            }
-            
-            return Response(status: .ok, headers: ["Content-Type": "application/pdf"], body: .data(bytes))
         }
-        
-        // MARK: Get Faxes
-        protected.get { request in
-            let phoneNumber = try? request.data.extract("phoneNumber") as String
+    }
+    
+    // MARK: GET
+    func get(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let authentication = try request.authentication()
+            let phoneNumber = try? request.query.get(at: "phoneNumber") as String
             let pageInfo = request.pageInfo
             let filter: Query?
             let link: String
@@ -366,9 +363,14 @@ extension Fax {
                 "apiVersion": false
             ], skipping: pageInfo.skip, limitedTo: pageInfo.limit, withBatchSize: pageInfo.limit)
             if request.jsonResponse {
-                return try documents.makeResponse()
+                return promise.submit(try documents.makeResponse(request))
             } else {
-                var pages = try (documents.count() / pageInfo.limit) + 1
+                var pageLink: String = ""
+                if let phoneNumber = phoneNumber {
+                    pageLink += "&phoneNumber=\(phoneNumber)"
+                }
+                let pageSkip = max(pageInfo.skip - (pageInfo.limit * 5), 0)
+                var pages = try ((pageSkip + documents.count(limitedTo: pageInfo.limit * 10, skipping: pageSkip)) / pageInfo.limit) + 1
                 let startPage: Int
                 if pages > 7 {
                     let firstPage = pageInfo.page - 3
@@ -420,92 +422,229 @@ extension Fax {
                     } else {
                         badge = "warning"
                     }
-                    let string = "<tr onclick=\"location.href='/fax/file/\(id.hexString)'\"><td>\(direction)</td><td>\(from)</td><td>\(to)</td><td>\(dateCreated.longString)</td><td>\(dateUpdated.longString)</td><td>\(pages)</td><td>\(price)</td><td>\(quality)</td><td>\(duration)</td><td><span class=\"badge badge-\(badge)\">\(status)</span></td></tr>"
+                    let string = "<tr onclick=\"location.href='/fax/\(id.hexString)'\"><td>\(direction)</td><td>\(from)</td><td>\(to)</td><td>\(dateCreated.longString)</td><td>\(dateUpdated.longString)</td><td>\(pages)</td><td>\(price)</td><td>\(quality)</td><td>\(duration)</td><td><span class=\"badge badge-\(badge)\">\(status)</span></td><td><a href=\"/fax/file/\(id.hexString)\">PDF</a></td></tr>"
                     tableData.append(string)
                 }
-                return try drop.view.make("faxes", [
-                    "tableData": tableData,
-                    "accountData": accountData,
-                    "pageData": pageData,
-                    "page": pageInfo.page,
-                    "phoneNumber": phoneNumber ?? "",
-                    "nextPage": (pageInfo.page + 1 > pages.count ? "#" : "\(link)page=\(pageInfo.page + 1)"),
-                    "prevPage": (pageInfo.page - 1 <= 0 ? "#" : "\(link)page=\(pageInfo.page - 1)")
+                let context = TemplateData.dictionary([
+                    "tableData": .string(tableData),
+                    "accountData": .string(accountData),
+                    "phoneNumber": .string(phoneNumber ?? ""),
+                    "pageData": .string(pageData),
+                    "page": .int(pageInfo.page),
+                    "nextPage": .string((pageInfo.page + 1 > pages ? "#" : "\(link)page=\(pageInfo.page + 1)\(pageLink)")),
+                    "prevPage": .string((pageInfo.page - 1 <= 0 ? "#" : "\(link)page=\(pageInfo.page - 1)\(pageLink)")),
+                    "admin": .bool(authentication.permission.isAdmin),
+                    "canSend": .bool(authentication.permission != .readOnly),
+                    "contactsEnabled": .bool(Admin.settings.googleClientId != nil && Admin.settings.googleClientSecret != nil)
                 ])
+                return promise.submit(try request.renderEncoded("faxes", context))
             }
         }
-        
-        // MARK: Receive Fax
-        group.post("receive") { request in
-            let sid = try request.data.extract("FaxSid") as String
-            let accountSid = try request.data.extract("AccountSid") as String
-            let mediaUrl = try request.data.extract("MediaUrl") as String
-            guard let account = try Account.collection.findOne("accountSid" == accountSid) else {
+    }
+    
+    // MARK: DELETE :faxId
+    func deleteFax(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let objectId = try request.parameters.next(ObjectId.self)
+            let authentication = try request.authentication()
+            guard (Admin.settings.regularUserCanDelete ? authentication.permission != .readOnly : authentication.permission.isAdmin) else {
+                return promise.succeed(result: request.serverStatusRedirect(status: .forbidden, to: "/fax/\(objectId.hexString)"))
+            }
+            try FaxFile.collection.remove("faxObjectId" == objectId)
+            try Fax.collection.remove("_id" == objectId)
+            return promise.succeed(result: request.serverStatusRedirect(status: .ok, to: "/fax"))
+        }
+    }
+    
+    // MARK: GET file/:fileId
+    func getFileFileId(_ request: Request) throws -> Future<ServerResponse> {
+        let objectId = try request.parameters.next(ObjectId.self)
+        let token = try? request.query.get(at: "token") as String
+        return try getFile(objectId: objectId, token: token, request: request)
+    }
+    
+    // MARK: GET file/:fileId/:token
+    func getFileFileIdToken(_ request: Request) throws -> Future<ServerResponse> {
+        let objectId = try request.parameters.next(ObjectId.self)
+        let token = try request.parameters.next(String.self)
+        return try getFile(objectId: objectId, token: token, request: request)
+    }
+    
+    func getFile(objectId: ObjectId, token: String? = nil, request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            guard let document = try FaxFile.collection.findOne("faxObjectId" == objectId) else {
+                throw ServerAbort(.notFound, reason: "Fax not found")
+            }
+            if (try? request.authentication()) == nil {
+                guard let documentToken = document["token"] as? String, token == documentToken else {
+                    return promise.succeed(result: request.serverStatusRedirect(status: .forbidden, to: "/user/login?referrer=/fax/file/\(objectId.hexString)"))
+                }
+            }
+            
+            guard let data = Data(document["data"]) else {
+                throw ServerAbort(.notFound, reason: "Fax file empty")
+            }
+            
+            let response = Response(using: request.sharedContainer)
+            response.http.headers.replaceOrAdd(name: .contentType, value: "application/pdf")
+            response.http.status = .ok
+            response.http.body = HTTPBody(data: data)
+            return promise.succeed(result: ServerResponse.response(response))
+        }
+    }
+    
+    // MARK: POST status/:faxId
+    func postStatusFaxId(_ request: Request) throws -> Future<ServerResponse> {
+        let objectId = try request.parameters.next(ObjectId.self)
+        let token = try? request.query.get(at: "token") as String
+        return try status(objectId: objectId, token: token, request: request)
+    }
+    
+    // MARK: POST status/:faxId/:token
+    func postStatusFaxIdToken(_ request: Request) throws -> Future<ServerResponse> {
+        let objectId = try request.parameters.next(ObjectId.self)
+        let token = try request.parameters.next(String.self)
+        return try status(objectId: objectId, token: token, request: request)
+    }
+    
+    func status(objectId: ObjectId, token: String? = nil, request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let twilioFax = try request.content.syncDecode(TwilioIncommingFax.self)
+            guard let account = try Account.collection.findOne("accountSid" == twilioFax.accountSid) else {
+                throw ServerAbort(.notFound, reason: "Account not found")
+            }
+            let authToken = try account.extract("authToken") as String
+            
+            guard var document = try Fax.collection.findOne("_id" == objectId) else {
+                throw ServerAbort(.notFound, reason: "Fax not found")
+            }
+            
+            if (try? request.authentication()) == nil {
+                let documentToken = try document.extract("token") as String
+                guard token == documentToken else {
+                    throw ServerAbort(.notFound, reason: "Invalid fax token")
+                }
+            }
+            
+            document.update(withIncommingFax: twilioFax)
+            
+            let requestClient = try request.make(Client.self)
+            let headers = HTTPHeaders([
+                ("Authorization", "Basic \(try String.twilioAuthString(twilioFax.accountSid, authToken: authToken))"),
+                ("Accept", "application/json")
+            ])
+            requestClient.get("\(Constants.Twilio.faxUrl)/Faxes/\(twilioFax.sid)", headers: headers).do { response in
+                guard response.http.status.isValid else {
+                    return promise.fail(error: ServerAbort(response.http.status, reason: "Twilio reponse error"))
+                }
+                do {
+                    let twilioFax = try response.content.syncDecode(TwilioFax.self)
+                    document.update(withFax: twilioFax)
+                    
+                    try Fax.collection.update("_id" == document.objectId, to: document)
+                    document.sendAlert(request, objectId: objectId, to: document["senderEmail"] as? String, subject: "Fax Status Update", alertType: .faxStatus)
+                    
+                    return promise.succeed(result: ServerResponse.response(request.statusResponse(status: .ok)))
+                } catch let error {
+                    Logger.error("Fax Status Update Error: \(error)")
+                    return promise.fail(error: error)
+                }
+            }.catch { error in
+                Logger.error("Fax Status Update Error: \(error)")
+                return promise.fail(error: error)
+            }
+        }
+    }
+    
+    // MARK: POST receive
+    func postReceive(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let twilioFax = try request.content.syncDecode(TwilioIncommingFax.self)
+            guard let account = try Account.collection.findOne("accountSid" == twilioFax.accountSid) else {
                 throw ServerAbort(.notFound, reason: "Account not found")
             }
             let authToken = try account.extract("authToken") as String
             let token = try String.token()
             
             var document: Document = [
-                "sid": sid,
-                "accountSid": accountSid,
-                "from": request.data["From"]?.string,
-                "to": request.data["To"]?.string,
-                "remoteStationId": request.data["RemoteStationId"]?.string,
-                "status": request.data["FaxStatus"]?.string,
+                "sid": twilioFax.sid,
+                "accountSid": twilioFax.accountSid,
+                "from": twilioFax.from,
+                "to": twilioFax.to,
+                "remoteStationId": twilioFax.remoteStationId,
+                "status": twilioFax.status,
                 "direction": "inbound",
-                "apiVersion": request.data["ApiVersion"]?.string,
-                "pages": request.data["NumPages"]?.int,
-                "mediaUrl": request.data["MediaUrl"]?.string,
-                "errorCode": request.data["ErrorCode"]?.string,
-                "errorMessage": request.data["ErrorMessage"]?.string,
+                "apiVersion": twilioFax.apiVersion,
+                "pages": twilioFax.pages,
+                "mediaUrl": twilioFax.mediaUrl,
+                "errorCode": twilioFax.errorCode,
+                "errorMessage": twilioFax.errorMessage,
                 "token": token
             ]
             
-            guard let responseBytes = try drop.client.get("\(Constants.Twilio.faxUrl)/Faxes/\(sid)", [
-                "Authorization": "Basic \(try String.twilioAuthString(accountSid, authToken: authToken))",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json"
-            ]).body.bytes else {
-                throw ServerAbort(.notFound, reason: "Error parsing response body")
-            }
-            let json = try JSON(bytes: responseBytes)
-            document.update(withTwilioJson: json)
-            
-            guard let objectId = try Fax.collection.insert(document) as? ObjectId else {
-                throw ServerAbort(.notFound, reason: "Error creating fax")
-            }
-            
-            var response = try EngineClient.factory.get(mediaUrl)
-            var count = 0
-            while response.status != .ok, let location = response.headers["Location"]?.string {
-                guard count < 5 else {
-                    break
+            let requestClient = try request.make(Client.self)
+            let headers = HTTPHeaders([
+                ("Authorization", "Basic \(try String.twilioAuthString(twilioFax.accountSid, authToken: authToken))"),
+                ("Accept", "application/json")
+            ])
+            func getMedia(mediaUrl: String, count: Int = 0, callback: @escaping (Response) -> ()) {
+                _ = requestClient.get(mediaUrl).do { response in
+                    if response.http.status == .ok {
+                        callback(response)
+                    } else {
+                        guard count <= 5, let url = response.http.headers.firstValue(name: .location) else {
+                            callback(response)
+                            return
+                        }
+                        getMedia(mediaUrl: url, count: count + 1, callback: callback)
+                    }
                 }
-                response = try EngineClient.factory.get(location)
-                count += 1
             }
-            
-            guard response.status == .ok else {
-                throw ServerAbort(.notFound, reason: "Invalid response")
+            requestClient.get("\(Constants.Twilio.faxUrl)/Faxes/\(twilioFax.sid)", headers: headers).do { response in
+                guard response.http.status.isValid else {
+                    return promise.fail(error: ServerAbort(response.http.status, reason: "Twilio reponse error"))
+                }
+                do {
+                    let twilioFax = try response.content.syncDecode(TwilioFax.self)
+                    
+                    guard let mediaUrl = twilioFax.mediaUrl else {
+                        throw ServerAbort(.badRequest, reason: "Media URL Required")
+                    }
+                    
+                    getMedia(mediaUrl: mediaUrl) { mediaResponse in
+                        do {
+                            guard mediaResponse.http.status == .ok, let data = mediaResponse.http.body.data else {
+                                throw ServerAbort(.notFound, reason: "Error getting fax media")
+                            }
+                            document.update(withFax: twilioFax)
+                            guard let objectId = try Fax.collection.insert(document) as? ObjectId else {
+                                throw ServerAbort(.notFound, reason: "Error creating fax")
+                            }
+                            document.sendAlert(request, objectId: objectId, to: account["notificationEmail"] as? String ?? Admin.settings.notificationEmail, subject: "Fax Received", alertType: .faxReceived)
+                            
+                            let fileDocument: Document = [
+                                "faxObjectId": objectId,
+                                "token": token,
+                                "dateCreated": Date(),
+                                "data": data
+                            ]
+                            
+                            try FaxFile.collection.insert(fileDocument)
+                            
+                            return promise.succeed(result: ServerResponse.response(request.statusResponse(status: .ok)))
+                        } catch let error {
+                            Logger.error("Fax Receive Error: \(error)")
+                            return promise.fail(error: error)
+                        }
+                    }
+                } catch let error {
+                    Logger.error("Fax Receive Error: \(error)")
+                    return promise.fail(error: error)
+                }
+            }.catch { error in
+                Logger.error("Fax Receive Error: \(error)")
+                return promise.fail(error: error)
             }
-            
-            guard let bytes = response.body.bytes else {
-                throw ServerAbort(.notFound, reason: "No response body")
-            }
-            
-            let fileDocument: Document = [
-                "faxObjectId": objectId,
-                "token": token,
-                "dateCreated": Date(),
-                "data": Data(bytes: bytes)
-            ]
-            
-            try FaxFile.collection.insert(fileDocument)
-            
-            document.sendAlert(drop, objectId: objectId, to: account["notificationEmail"] as? String ?? Admin.settings.notificationEmail, subject: "Fax Received", alertType: .faxStatus)
-            
-            return Response(jsonStatus: .ok)
         }
     }
 }

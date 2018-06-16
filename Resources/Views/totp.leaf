@@ -1,6 +1,5 @@
-#extend("formBase")
-#export("title") { Login }
-#export("main") {
+#set("title") { Login }
+#set("main") {
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-4">
@@ -30,3 +29,4 @@
         </div>
     </div>
 }
+#embed("formBase")

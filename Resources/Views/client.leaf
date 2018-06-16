@@ -1,7 +1,5 @@
-#extend("base")
-
-#export("title") { Client }
-#export("main") {
+#set("title") { Client }
+#set("main") {
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/client">Clients</a></li>
         <li class="breadcrumb-item active">Client</li>
@@ -62,3 +60,4 @@
         </div>
     </div>
 }
+#embed("base")

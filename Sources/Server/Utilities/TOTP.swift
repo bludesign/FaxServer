@@ -36,18 +36,17 @@ struct TOTP {
     // MARK: - Methods
     
     static func randomToken() throws -> String {
-        let data = try Application.shared.random.bytes(count: 20)
+        let data = try MainApplication.shared.random.generateData(count: 20)
         return Base32.encode(data)
     }
     
-    static func generate(key: String, timeInterval: TimeInterval = Date().timeIntervalSince1970, period: TimeInterval = 30, digits: Int = 6, hashFunction: Crypto.Hash.Method = .sha1) throws -> String {
+    static func generate(key: String, timeInterval: TimeInterval = Date().timeIntervalSince1970, period: TimeInterval = 30, digits: Int = 6, hashFunction: HMAC = HMAC.SHA1) throws -> String {
         let key = try Base32.decode(key)
         let counter = UInt64(timeInterval / period).bigEndian
         let message = Data(from: counter)
-        let hmac = try HMAC.make(.sha1, message, key: key)
+        let hmac = try hashFunction.authenticate(message, key: key)
         let offset = Int((hmac.last ?? 0x00) & 0x0f)
-        let data = Data(bytes: hmac)
-        let truncated = data.withUnsafeBytes { (bytePointer: UnsafePointer<UInt8>) -> UInt32 in
+        let truncated = hmac.withUnsafeBytes { (bytePointer: UnsafePointer<UInt8>) -> UInt32 in
             let offsetPointer = bytePointer.advanced(by: offset)
             return offsetPointer.withMemoryRebound(to: UInt32.self, capacity: MemoryLayout<UInt32>.size) { $0.pointee.bigEndian }
         }
@@ -71,7 +70,7 @@ private struct Base32 {
     
     // MARK: - Methods
     
-    static func encode(_ data: Bytes) -> String {
+    static func encode(_ data: Data) -> String {
         var characters: [Character] = []
         let pieceLength = 5
         for index in stride(from: data.startIndex, to: data.endIndex, by: pieceLength) {
@@ -132,11 +131,7 @@ private struct Base32 {
             lowerBoundIndex = upperBoundIndex
             upperBoundIndex = string.index(upperBoundIndex, offsetBy: 8, limitedBy: string.endIndex) ?? string.endIndex
             
-            #if swift(>=4)
-                let substring = string[lowerBoundIndex ..< upperBoundIndex]
-            #else
-                let substring = string.substring(with: lowerBoundIndex ..< upperBoundIndex)
-            #endif
+            let substring = string[lowerBoundIndex ..< upperBoundIndex]
             let decodedBytes = substring.lazy.map { value(for: $0) }
             var fiveByte: UInt64 = 0
             
@@ -215,8 +210,6 @@ private struct Base32 {
 }
 
 private extension Data {
-    
-    #if swift(>=4)
     init<T: BinaryInteger>(from value: T) {
         let valuePointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
         defer {
@@ -229,18 +222,4 @@ private extension Data {
         
         self.init(bytes: bytesPointer, count: MemoryLayout<T>.size)
     }
-    #else
-    init<T: Integer>(from value: T) {
-    let valuePointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
-    defer {
-    valuePointer.deallocate(capacity: 1)
-    }
-    
-    valuePointer.pointee = value
-    
-    let bytesPointer = valuePointer.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<UInt8>.size) { $0 }
-    
-    self.init(bytes: bytesPointer, count: MemoryLayout<T>.size)
-    }
-    #endif
 }

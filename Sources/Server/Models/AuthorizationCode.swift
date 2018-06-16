@@ -14,6 +14,6 @@ struct AuthorizationCode {
     
     static let collectionName = "authorizationCode"
     static var collection: MongoKitten.Collection {
-        return Application.shared.database[collectionName]
+        return MongoProvider.shared.database[collectionName]
     }
 }

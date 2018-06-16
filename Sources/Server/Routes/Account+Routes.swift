@@ -9,122 +9,179 @@ import Foundation
 import Vapor
 import MongoKitten
 
-extension Account {
+struct AccountRouter {
     
-    // MARK: - Methods
-    
-    static func routes(_ drop: Droplet, _ group: RouteBuilder) {
-        let protected = group.grouped([AuthenticationMiddleware.shared])
+    init(router: Router) {
+        let adminRouter = router.grouped(AdminAuthenticationMiddleware.self)
         
-        // MARK: Get Accounts
-        protected.get { request in
-            let skip = request.data["skip"]?.int ?? 0
-            let limit = min(100, request.data["limit"]?.int ?? 100)
+        adminRouter.get(use: get)
+        adminRouter.post(use: post)
+        adminRouter.post(ObjectId.parameter, use: postAccount)
+        adminRouter.get(ObjectId.parameter, use: getAccount)
+        adminRouter.post(ObjectId.parameter, "configure", use: postAccountConfigure)
+    }
+    
+    // MARK: GET
+    func get(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let authentication = try request.authentication()
+            
+            let pageInfo = request.pageInfo
             let documents = try Account.collection.find(sortedBy: ["accountName": .ascending], projecting: [
                 "authToken": false
-            ], skipping: skip, limitedTo: limit, withBatchSize: limit)
+            ], skipping: pageInfo.skip, limitedTo: pageInfo.limit, withBatchSize: pageInfo.limit)
             if request.jsonResponse {
-                return try documents.makeResponse()
+                return promise.submit(try documents.makeResponse(request))
             } else {
                 var tableData: String = ""
                 for document in documents {
-                    guard let accountSid = document["accountSid"], let accountName = document["accountName"], let phoneNumber = document["phoneNumber"], let notificationEmail = document["notificationEmail"], let id = document.objectId else {
-                        continue
-                    }
+                    guard let accountSid = document["accountSid"], let accountName = document["accountName"], let phoneNumber = document["phoneNumber"], let notificationEmail = document["notificationEmail"], let id = document.objectId else { continue }
                     let string = "<tr onclick=\"location.href='/account/\(id.hexString)'\"><td>\(accountName)</td><td>\(accountSid)</td><td>\(phoneNumber)</td><td>\(notificationEmail)</td></tr>"
                     tableData.append(string)
                 }
-                return try drop.view.make("accounts", ["tableData": tableData])
+                let context = TemplateData.dictionary([
+                    "tableData": .string(tableData),
+                    "admin": .bool(authentication.permission.isAdmin),
+                    "contactsEnabled": .bool(Admin.settings.googleClientId != nil && Admin.settings.googleClientSecret != nil)
+                ])
+                return promise.submit(try request.renderEncoded("accounts", context))
             }
         }
-        
-        // MARK: Create Account
-        protected.post { request in
-            let accountName = try request.data.extract("accountName") as String
-            let notificationEmail = try request.data.extract("notificationEmail") as String
-            let phoneNumber = try request.data.extract("phoneNumber") as String
-            let accountSid = try request.data.extract("accountSid") as String
-            let authToken = try request.data.extract("authToken") as String
+    }
+    
+    // MARK: POST
+    func post(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            struct FormData: Codable {
+                let accountName: String
+                let notificationEmail: String
+                let phoneNumber: String
+                let accountSid: String
+                let authToken: String
+            }
+            let formData = try request.content.syncDecode(FormData.self)
             
             let document: Document = [
-                "accountName": accountName,
-                "notificationEmail": notificationEmail,
-                "phoneNumber": phoneNumber,
-                "accountSid": accountSid,
-                "authToken": authToken
+                "accountName": formData.accountName,
+                "notificationEmail": formData.notificationEmail,
+                "phoneNumber": formData.phoneNumber,
+                "accountSid": formData.accountSid,
+                "authToken": formData.authToken
             ]
-            try Account.collection.insert(document)
-            
-            if request.jsonResponse {
-                return Response(jsonStatus: .ok)
+            guard let objectId = try Account.collection.insert(document) as? ObjectId else {
+                throw ServerAbort(.internalServerError, reason: "ObjectID Missing")
             }
-            return Response(redirect: "/account")
+            
+            return promise.succeed(result: request.serverStatusRedirect(status: .ok, to: "/account/\(objectId.hexString)"))
         }
-        
-        // MARK: Update Account
-        protected.post(":objectId") { request in
-            let objectId = try request.parameters.extract("objectId") as ObjectId
+    }
+    
+    // MARK: POST :accountId
+    func postAccount(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let objectId = try request.parameters.next(ObjectId.self)
+            struct FormData: Codable {
+                let action: String?
+                let accountName: String?
+                let notificationEmail: String?
+                let phoneNumber: String?
+                let accountSid: String?
+                let authToken: String?
+            }
+            let formData = try request.content.syncDecode(FormData.self)
             
             guard var document = try Account.collection.findOne("_id" == objectId) else {
                 throw ServerAbort(.notFound, reason: "Account not found")
             }
             
-            if request.data["action"]?.string == "delete" {
+            if formData.action == "delete" {
                 try Account.collection.remove("_id" == objectId)
-                if request.jsonResponse {
-                    return Response(jsonStatus: .ok)
-                }
-                return Response(redirect: "/account")
+                return promise.succeed(result: request.serverStatusRedirect(status: .ok, to: "/account"))
             }
             
-            if let accountName = try? request.data.extract("accountName") as String {
+            if let accountName = formData.accountName {
                 document["accountName"] = accountName
             }
-            if let notificationEmail = try? request.data.extract("notificationEmail") as String {
+            if let notificationEmail = formData.notificationEmail {
                 document["notificationEmail"] = notificationEmail
             }
-            if let phoneNumber = try? request.data.extract("phoneNumber") as String {
+            if let phoneNumber = formData.phoneNumber {
                 document["phoneNumber"] = phoneNumber
             }
-            if let accountSid = try? request.data.extract("accountSid") as String {
+            if let accountSid = formData.accountSid {
                 document["accountSid"] = accountSid
             }
-            if let authToken = try? request.data.extract("authToken") as String {
+            if let authToken = formData.authToken, authToken.isEmpty == false {
                 document["authToken"] = authToken
             }
             
             try Account.collection.update("_id" == objectId, to: document, upserting: true)
             
-            if request.jsonResponse {
-                return Response(jsonStatus: .ok)
-            }
-            return Response(redirect: "/account")
+            return promise.succeed(result: request.serverStatusRedirect(status: .ok, to: "/account/\(objectId.hexString)"))
         }
-        
-        // MARK: Get Account
-        protected.get(":objectId") { request in
-            let objectId = try request.parameters.extract("objectId") as ObjectId
+    }
+    
+    // MARK: GET :accountId
+    func getAccount(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            let objectId = try request.parameters.next(ObjectId.self)
+            let authentication = try request.authentication()
             
             guard let document = try Account.collection.findOne("_id" == objectId) else {
                 throw ServerAbort(.notFound, reason: "Account not found")
             }
             
             if request.jsonResponse {
-                return try document.makeResponse()
+                return promise.submit(try document.makeResponse(request))
             } else {
-                return try drop.view.make("account", [
-                    "accountName": try document.extract("accountName") as String,
-                    "notificationEmail": try document.extract("notificationEmail") as String,
-                    "phoneNumber": try document.extract("phoneNumber") as String,
-                    "accountSid": try document.extract("accountSid") as String,
-                    "accountId": objectId.hexString
+                let context = TemplateData.dictionary([
+                    "accountName": .string(try document.extract("accountName") as String),
+                    "notificationEmail": .string(try document.extract("notificationEmail") as String),
+                    "phoneNumber": .string(try document.extract("phoneNumber") as String),
+                    "accountSid": .string(try document.extract("accountSid") as String),
+                    "accountId": .string(objectId.hexString),
+                    "admin": .bool(authentication.permission.isAdmin),
+                    "contactsEnabled": .bool(Admin.settings.googleClientId != nil && Admin.settings.googleClientSecret != nil)
                 ])
+                return promise.submit(try request.renderEncoded("account", context))
             }
         }
-        
-        // MARK: Configure Account
-        protected.post(":objectId", "configure") { request in
-            let objectId = try request.parameters.extract("objectId") as ObjectId
+    }
+    
+    // MARK: POST :accountId/configure
+    func postAccountConfigure(_ request: Request) throws -> Future<ServerResponse> {
+        return request.globalAsync { promise in
+            guard let url = Admin.settings.domain else {
+                throw ServerAbort(.notFound, reason: "No domain URL set in settings")
+            }
+            struct Response: Decodable {
+                struct PhoneNumber: Decodable {
+                    let sid: String
+                    let capabilities: Capabilities
+                    
+                    struct Capabilities: Decodable {
+                        let sms: Bool
+                    }
+                }
+                
+                let incomingPhoneNumbers: [PhoneNumber]
+                
+                private enum CodingKeys : String, CodingKey {
+                    case incomingPhoneNumbers = "incoming_phone_numbers"
+                }
+            }
+            
+            struct Request: Encodable {
+                let smsUrl: String
+                let smsMethod: String
+                
+                private enum CodingKeys : String, CodingKey {
+                    case smsUrl = "SmsUrl"
+                    case smsMethod = "SmsMethod"
+                }
+            }
+            
+            let objectId = try request.parameters.next(ObjectId.self)
             
             guard let document = try Account.collection.findOne("_id" == objectId) else {
                 throw ServerAbort(.notFound, reason: "Account not found")
@@ -132,53 +189,41 @@ extension Account {
             let accountSid = try document.extract("accountSid") as String
             let authToken = try document.extract("authToken") as String
             let accountPhoneNumber = try document.extract("phoneNumber") as String
-            let twilioRequest = Request(method: .get, uri: "\(Constants.Twilio.messageUrl)/Accounts/\(accountSid)/IncomingPhoneNumbers.json?PhoneNumber=\(accountPhoneNumber)", headers: [
-                "Authorization": "Basic \(try String.twilioAuthString(accountSid, authToken: authToken))",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json"
+            
+            let requestClient = try request.make(Client.self)
+            let headers = HTTPHeaders([
+                ("Authorization", "Basic \(try String.twilioAuthString(accountSid, authToken: authToken))"),
+                ("Accept", "application/json"),
             ])
-            
-            let response: Response = try drop.client.respond(to: twilioRequest)
-            guard response.status.isValid else {
-                throw ServerAbort(response.status, reason: "Twilio reponse error")
-            }
-            guard let responseBytes = response.body.bytes else {
-                throw ServerAbort(.notFound, reason: "Error parsing response body")
-            }
-            let json = try JSON(bytes: responseBytes)
-            
-            guard let phoneNumbers = json["incoming_phone_numbers"]?.array else {
-                throw ServerAbort(.notFound, reason: "Error parsing response phone numbers")
-            }
-            guard let phoneNumber = phoneNumbers.first, let phoneNumberSid = phoneNumber["sid"]?.string else {
-                throw ServerAbort(.notFound, reason: "Phone number not found on Twilio account")
-            }
-            guard let capabilities = phoneNumber["capabilities"]?.makeJSON(), capabilities["sms"]?.bool == true else {
-                throw ServerAbort(.notFound, reason: "Phone number does not support sms")
-            }
-            
-            let updateRequest = Request(method: .post, uri: "\(Constants.Twilio.messageUrl)/Accounts/\(accountSid)/IncomingPhoneNumbers/\(phoneNumberSid).json", headers: [
-                "Authorization": "Basic \(try String.twilioAuthString(accountSid, authToken: authToken))",
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json"
-            ])
-            guard let url = Admin.settings.domain else {
-                throw ServerAbort(.notFound, reason: "No host URL set in settings")
-            }
-            updateRequest.body = .data(try Node(node: [
-                "SmsUrl": "\(url)/message/twiml",
-                "SmsMethod": "POST"
-            ]).formURLEncodedPlus())
-            
-            let updateResponse: Response = try drop.client.respond(to: updateRequest)
-            guard updateResponse.status.isValid else {
-                throw ServerAbort(response.status, reason: "Twilio reponse error")
-            }
-            
-            if request.jsonResponse {
-                return Response(jsonStatus: .ok)
-            } else {
-                return Response(redirect: "/account/\(objectId.hexString)")
+            requestClient.get("\(Constants.Twilio.messageUrl)/Accounts/\(accountSid)/IncomingPhoneNumbers.json?PhoneNumber=\(accountPhoneNumber)", headers: headers).do { response in
+                Logger.info("Response: \(response)")
+                guard response.http.status.isValid else {
+                    return promise.fail(error: ServerAbort(response.http.status, reason: "Twilio reponse error"))
+                }
+                do {
+                    let response = try response.content.syncDecode(Response.self)
+                    guard let phoneNumber = response.incomingPhoneNumbers.first else {
+                        throw ServerAbort(.notFound, reason: "Phone number not found")
+                    }
+                    guard phoneNumber.capabilities.sms else {
+                        throw ServerAbort(.notFound, reason: "Phone number does not support SMS")
+                    }
+                    requestClient.post("\(Constants.Twilio.messageUrl)/Accounts/\(accountSid)/IncomingPhoneNumbers/\(phoneNumber.sid).json", headers: headers, beforeSend: { request in
+                        try request.content.encode(Request(smsUrl: "\(url)/message/twiml", smsMethod: "POST"), as: .urlEncodedForm)
+                    }).do { response in
+                        Logger.info("POST Response: \(response)")
+                        guard response.http.status.isValid else {
+                            return promise.fail(error: ServerAbort(response.http.status, reason: "Twilio reponse error"))
+                        }
+                        return promise.succeed(result: request.serverStatusRedirect(status: .ok, to: "/account/\(objectId.hexString)"))
+                    }.catch { error in
+                        return promise.fail(error: error)
+                    }
+                } catch let error {
+                    return promise.fail(error: error)
+                }
+            }.catch { error in
+                return promise.fail(error: error)
             }
         }
     }

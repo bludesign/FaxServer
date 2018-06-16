@@ -1,7 +1,5 @@
-#extend("base")
-
-#export("title") { Users }
-#export("main") {
+#set("title") { Users }
+#set("main") {
     <ol class="breadcrumb">
         <li class="breadcrumb-item active">Users</li>
     </ol>
@@ -18,41 +16,61 @@
                                 <tr>
                                     <th>Email</th>
                                     <th>2 Factor Enabled</th>
+                                    <th>Type</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                #raw(tableData)
+                                #get(tableData)
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fa fa-align-justify"></i> New User
-                    </div>
-                    <form class="form-signin" action="./user" method="post">
-                        <input name="referrer" type="hidden" value="/user" />
-                        <div class="card-block">
-                            #if(emailTaken) {
-                                <div class="alert alert-danger" role="alert">
-                                    <strong>Email Address Already In Use</strong>
+                #if(admin) {
+                    <div class="card">
+                        <div class="card-header">
+                            <i class="fa fa-align-justify"></i> New User
+                        </div>
+                        <form class="form-signin" action="/user" method="post">
+                            <input name="referrer" type="hidden" value="/user" />
+                            <div class="card-block">
+                                #if(emailTaken) {
+                                    <div class="alert alert-danger" role="alert">
+                                        <strong>Email Address Already In Use</strong>
+                                    </div>
+                                }
+                                <div class="input-group mb-3">
+                                    <span class="input-group-addon"><i class="icon-user"></i></span>
+                                    <input type="email" class="form-control" placeholder="Email" name="email" required>
                                 </div>
-                            }
-                            <div class="input-group mb-3">
-                                <span class="input-group-addon"><i class="icon-user"></i></span>
-                                <input type="email" class="form-control" placeholder="Email" name="email" required autofocus>
+                                <div class="input-group mb-4">
+                                    <span class="input-group-addon"><i class="icon-lock"></i></span>
+                                    <input type="password" class="form-control" placeholder="Password" name="password" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-control-label" for="prependedInput">Permission</label>
+                                    <div class="input-prepend input-group">
+                                        <div class="form-check">
+                                            <label class="form-check-label">
+                                                <input type="radio" class="form-check-input" name="permission" id="optionsRadios1" value="2" #(adminEnabled)> Admin
+                                            </label>
+                                            <label class="form-check-label">
+                                                <input type="radio" class="form-check-input" name="permission" id="optionsRadios2" value="1" #(adminDisabled)> Regular
+                                            </label>
+                                            <label class="form-check-label">
+                                                <input type="radio" class="form-check-input" name="permission" id="optionsRadios2" value="0" #(adminDisabled)> Read Only
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="input-group mb-4">
-                                <span class="input-group-addon"><i class="icon-lock"></i></span>
-                                <input type="password" class="form-control" placeholder="Password" name="password" required>
+                            <div class="card-footer">
+                                <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Create User</button>
                             </div>
-                        </div>
-                        <div class="card-footer">
-                            <button type="submit" class="btn btn-sm btn-primary" name="action" value="send"><i class="fa fa-dot-circle-o"></i> Create User</button>
-                        </div>
-                    </form>
-                </div>
+                        </form>
+                    </div>
+                }
             </div>
         </div>
     </div>
 }
+#embed("base")

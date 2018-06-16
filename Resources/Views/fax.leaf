@@ -1,16 +1,16 @@
-#set("title") { Message }
+#set("title") { Fax }
 #set("main") {
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="/message">Messages</a></li>
-        <li class="breadcrumb-item active">Message</li>
+        <li class="breadcrumb-item"><a href="/fax">Faxes</a></li>
+        <li class="breadcrumb-item active">Fax</li>
     </ol>
     <div class="container">
         <div class="row">
             <div class="col-lg-12">
                 <div class="card">
-                    <form class="form-signin" action="/message/#(messageId)" method="post">
+                    <form class="form-signin" action="/fax/#(faxId)" method="post">
                         <div class="card-header">
-                            <i class="fa fa-align-justify"></i> Message
+                            <i class="fa fa-align-justify"></i> Fax
                         </div>
                         <div class="card-block">
                             <table class="table">
@@ -24,38 +24,52 @@
                                         <td>#(to)</td>
                                     </tr>
                                     <tr>
-                                        <td>From Location</td>
-                                        <td>#(fromLocation)</td>
+                                        <td>Date Created</td>
+                                        <td>#(dateCreated)</td>
                                     </tr>
                                     <tr>
-                                        <td>To Location</td>
-                                        <td>#(toLocation)</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Date</td>
-                                        <td>#(date)</td>
+                                        <td>Date Updated</td>
+                                        <td>#(dateUpdated)</td>
                                     </tr>
                                     <tr>
                                         <td>Status</td>
                                         <td>#get(status)</td>
                                     </tr>
                                     <tr>
-                                        <td>Media Files</td>
-                                        <td>#(mediaCount)</td>
+                                        <td>Quality</td>
+                                        <td>#(quality)</td>
                                     </tr>
                                     <tr>
-                                        <td>Body</td>
-                                        <td>#(body)</td>
+                                        <td>Duration</td>
+                                        <td>#(duration)</td>
                                     </tr>
+                                    <tr>
+                                        <td>Pages</td>
+                                        <td>#(pages)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Price</td>
+                                        <td>#(price)</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Remote Station ID</td>
+                                        <td>#(remoteStationId)</td>
+                                    </tr>
+                                    #if(error) {
+                                        <tr>
+                                            <td>Error</td>
+                                            <td>#(error)</td>
+                                        </tr>
+                                    }
                                     #if(sendingUser) {
                                         <tr>
                                             <td>Sending User Email</td>
                                             <td>#(sendingUser)</td>
                                         </tr>
                                     }
-                                    #get(mediaFiles)
                                 </tbody>
                             </table>
+                            <a href="/fax/file/#(faxId)" class="btn btn-primary btn-lg btn-block" role="button" aria-pressed="true">View Fax PDF</a>
                         </div>
                         #if(canDelete) {
                           <div class="card-footer">

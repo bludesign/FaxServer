@@ -1,7 +1,5 @@
-#extend("formBase")
-
-#export("title") { Register }
-#export("main") {
+#set("title") { Register }
+#set("main") {
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-8">
@@ -13,7 +11,7 @@
                                 <div class="alert alert-danger" role="alert">
                                     <strong>Registration is Disabled</strong>
                                 </div>
-                            } ##else() {
+                            } else {
                                 <p class="text-muted">Create your account</p>
                                 #if(emailTaken) {
                                     <div class="alert alert-danger" role="alert">
@@ -41,3 +39,4 @@
         </div>
     </div>
 }
+#embed("formBase")

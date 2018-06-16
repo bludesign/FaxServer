@@ -1,31 +1,29 @@
-#extend("base")
-
-#export("title") { Account }
-#export("css") {
+#set("title") { Account }
+#set("css") {
     <link rel="stylesheet" href="/vendors/css/intlTelInput.css">
 }
-#export("scripts") {
+#set("scripts") {
     <script src="/vendors/js/intlTelInput.js"></script>
     <script>
-        $("#()phoneNumber").intlTelInput({
+        $("#phoneNumber").intlTelInput({
             autoPlaceholder: "off",
             initialCountry: "auto",
             allowDropdown: false,
             geoIpLookup: function(callback) {
-                $.get("https://ipinfo.io", function() {}, "jsonp").always(function(resp) {
+                $.get("https://ipinfo.io", function() {\}, "jsonp").always(function(resp) {
                     var countryCode = (resp && resp.country) ? resp.country : "";
                     callback(countryCode);
-                });
-            },
+                \});
+            \},
             utilsScript: "/vendors/js/utils.js"
-        });
+        \});
         function Submit(){
-            document.form.phoneNumber.value = $("#()phoneNumber").intlTelInput("getNumber", intlTelInputUtils.numberFormat.E164);
+            document.form.phoneNumber.value = $("#phoneNumber").intlTelInput("getNumber", intlTelInputUtils.numberFormat.E164);
             return true;
-        }
+        \}
     </script>
 }
-#export("main") {
+#set("main") {
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/account">Accounts</a></li>
         <li class="breadcrumb-item active">Account</li>
@@ -111,3 +109,4 @@
         </div>
     </div>
 }
+#embed("base")

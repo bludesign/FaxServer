@@ -14,6 +14,6 @@ struct MessageFile {
     
     static let collectionName = "messageFile"
     static var collection: MongoKitten.Collection {
-        return Application.shared.database[collectionName]
+        return MongoProvider.shared.database[collectionName]
     }
 }

@@ -10,6 +10,7 @@ import Foundation
 struct Constants {
     static let defaultEmail = "mail@example.com"
     static let defaultTimeZone = "GMT"
+    static let hiddenText = "●●●●●●●●●●●●●●●●●●●●"
 
     struct Twilio {
         static let faxUrl = "https://fax.twilio.com/v1"
