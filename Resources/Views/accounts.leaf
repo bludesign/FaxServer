@@ -55,7 +55,7 @@
                     <div class="card-header">
                         <i class="fa fa-align-justify"></i> New Account
                     </div>
-                    <form class="form-signin" action="./account" name="form" method="post" enctype="multipart/form-data" onsubmit="Submit();">
+                    <form class="form-signin" action="./account" name="form" method="post" onsubmit="Submit();">
                         <div class="card-block">
                             <div class="form-group">
                                 <label class="form-control-label" for="prependedInput">Account Name</label>
