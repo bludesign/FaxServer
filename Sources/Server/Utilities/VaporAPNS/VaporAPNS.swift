@@ -70,7 +70,7 @@ open class VaporAPNS {
             let iss: IssuerClaim
             let iat: IssuedAtClaim = IssuedAtClaim(value: Date())
 
-            func verify() throws {
+            func verify(using signer: JWTSigner) throws {
 
             }
         }

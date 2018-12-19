@@ -88,8 +88,8 @@ final class CoreMiddleware: Middleware, Service {
         do {
             try next.respond(to: request).do { response in
                 promise.succeed(result: response)
-                }.catch { error in
-                    handleError(error)
+            }.catch { error in
+                handleError(error)
             }
         } catch {
             handleError(error)
