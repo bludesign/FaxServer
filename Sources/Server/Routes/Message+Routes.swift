@@ -322,6 +322,9 @@ struct MessageRouter {
                             guard response.http.status.isValid else {
                                 document["status"] = "failed"
                                 try Message.collection.update("_id" == objectId, to: document)
+                                if let error = try? response.content.syncDecode(TwilioError.self) {
+                                    throw ServerAbort(response.http.status, reason: "\(error.code): \(error.message)")
+                                }
                                 throw ServerAbort(response.http.status, reason: "Twilio reponse error")
                             }
                             

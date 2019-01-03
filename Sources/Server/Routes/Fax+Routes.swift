@@ -234,6 +234,9 @@ struct FaxRouter {
                             guard response.http.status.isValid else {
                                 document["status"] = "failed"
                                 try Fax.collection.update("_id" == objectId, to: document)
+                                if let error = try? response.content.syncDecode(TwilioError.self) {
+                                    throw ServerAbort(response.http.status, reason: "\(error.code): \(error.message)")
+                                }
                                 throw ServerAbort(response.http.status, reason: "Twilio reponse error")
                             }
                             
@@ -535,6 +538,9 @@ struct FaxRouter {
             ])
             requestClient.get("\(Constants.Twilio.faxUrl)/Faxes/\(twilioFax.sid)", headers: headers).do { response in
                 guard response.http.status.isValid else {
+                    if let error = try? response.content.syncDecode(TwilioError.self) {
+                        return promise.fail(error: ServerAbort(response.http.status, reason: "\(error.code): \(error.message)"))
+                    }
                     return promise.fail(error: ServerAbort(response.http.status, reason: "Twilio reponse error"))
                 }
                 do {

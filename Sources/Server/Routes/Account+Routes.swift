@@ -111,7 +111,7 @@ struct AccountRouter {
             if let accountSid = formData.accountSid {
                 document["accountSid"] = accountSid
             }
-            if let authToken = formData.authToken, authToken.isEmpty == false {
+            if let authToken = formData.authToken, authToken.isEmpty == false, authToken != Constants.hiddenText {
                 document["authToken"] = authToken
             }
             
@@ -134,12 +134,14 @@ struct AccountRouter {
             if request.jsonResponse {
                 return promise.submit(try document.makeResponse(request))
             } else {
+                let hasAuthToken = document["authToken"] as? String != nil
                 let context = TemplateData.dictionary([
                     "accountName": .string(try document.extract("accountName") as String),
                     "notificationEmail": .string(try document.extract("notificationEmail") as String),
                     "phoneNumber": .string(try document.extract("phoneNumber") as String),
                     "accountSid": .string(try document.extract("accountSid") as String),
                     "accountId": .string(objectId.hexString),
+                    "authToken": .string(hasAuthToken ? Constants.hiddenText : ""),
                     "admin": .bool(authentication.permission.isAdmin),
                     "contactsEnabled": .bool(Admin.settings.googleClientId != nil && Admin.settings.googleClientSecret != nil)
                 ])
@@ -196,8 +198,10 @@ struct AccountRouter {
                 ("Accept", "application/json"),
             ])
             requestClient.get("\(Constants.Twilio.messageUrl)/Accounts/\(accountSid)/IncomingPhoneNumbers.json?PhoneNumber=\(accountPhoneNumber)", headers: headers).do { response in
-                Logger.info("Response: \(response)")
                 guard response.http.status.isValid else {
+                    if let error = try? response.content.syncDecode(TwilioError.self) {
+                        return promise.fail(error: ServerAbort(response.http.status, reason: "\(error.code): \(error.message)"))
+                    }
                     return promise.fail(error: ServerAbort(response.http.status, reason: "Twilio reponse error"))
                 }
                 do {
@@ -211,8 +215,10 @@ struct AccountRouter {
                     requestClient.post("\(Constants.Twilio.messageUrl)/Accounts/\(accountSid)/IncomingPhoneNumbers/\(phoneNumber.sid).json", headers: headers, beforeSend: { request in
                         try request.content.encode(Request(smsUrl: "\(url)/message/twiml", smsMethod: "POST"), as: .urlEncodedForm)
                     }).do { response in
-                        Logger.info("POST Response: \(response)")
                         guard response.http.status.isValid else {
+                            if let error = try? response.content.syncDecode(TwilioError.self) {
+                                return promise.fail(error: ServerAbort(response.http.status, reason: "\(error.code): \(error.message)"))
+                            }
                             return promise.fail(error: ServerAbort(response.http.status, reason: "Twilio reponse error"))
                         }
                         return promise.succeed(result: request.serverStatusRedirect(status: .ok, to: "/account/\(objectId.hexString)"))

@@ -110,7 +110,7 @@ final class PushProvider: Vapor.Provider {
             
             struct Notification: Content {
                 let username: String = "fax"
-                let icon_url = "https://reaumur.tk/logo.png" // TODO: FIX LOGO
+                let icon_url = "https://bludesign.biz/faxserver.png"
                 let attachments: [Attachment]
                 
                 struct Attachment: Content {

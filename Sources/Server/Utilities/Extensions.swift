@@ -445,7 +445,7 @@ struct Email {
             var html: String?
         }
         var formData = FormData()
-        formData.from = "Reaumur Server <\(Admin.settings.mailgunFromEmail)>"
+        formData.from = "Fax Server <\(Admin.settings.mailgunFromEmail)>"
         formData.to = to
         formData.subject = subject
         guard let htmlBodyString = String(data: htmlBody, encoding: .utf8) else {

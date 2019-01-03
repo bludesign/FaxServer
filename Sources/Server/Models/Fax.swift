@@ -36,6 +36,11 @@ extension String {
     }
 }
 
+struct TwilioError: Codable {
+    let code: Int
+    let message: String
+}
+
 struct TwilioFax: Codable {
     
     // MARK: - Parameters

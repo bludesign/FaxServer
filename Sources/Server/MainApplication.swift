@@ -42,7 +42,7 @@ public final class MainApplication {
             services.registerMiddlewares()
             
             services.register { container -> NIOServerConfig in
-                var config = NIOServerConfig.default()
+                var config = NIOServerConfig.default(maxBodySize: 250_000_000)
                 if environment.isRelease == false {
                     config.hostname = "0.0.0.0"
                 }
@@ -55,7 +55,7 @@ public final class MainApplication {
                 services: services
             )
         } catch {
-            print(error)
+            Logger.error("Start Error: \(error)")
             exit(1)
         }
     }

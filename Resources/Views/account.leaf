@@ -79,7 +79,7 @@
                                 <div class="controls">
                                     <div class="input-prepend input-group">
                                         <span class="input-group-addon"><i class="icon-key"></i></span>
-                                        <input type="text" spellcheck="false" class="form-control" placeholder="Twilio Auth Token" name="authToken">
+                                        <input type="text" spellcheck="false" class="form-control" placeholder="Twilio Auth Token" name="authToken" value="#(authToken)">
                                     </div>
                                 </div>
                             </div>

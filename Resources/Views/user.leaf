@@ -2,7 +2,7 @@
 #set("scripts") {
     <script type="text/javascript" src="/vendors/js/qrcode.js"></script>
     <script>
-        jQuery('#code').qrcode("otpauth://totp/Fax%20Server:#(email)?secret=#(totpToken)&issuer=Fax%20Server&algorithm=SHA1&digits=6&period=30");
+        jQuery('#code').qrcode("#(totpToken)");
     </script>
 }
 #set("main") {
